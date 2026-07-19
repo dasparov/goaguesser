@@ -60,6 +60,16 @@ Phases: `picking → playing → scored → summary` (per game; `playing → sco
 
 **Movement:** none. Players look around from a fixed point. Fairest for score comparison, fastest rounds.
 
+### Round reveal (the payoff moment)
+
+When the player submits a guess, the map must show them *how far off they were* — this is the core feedback loop of the game:
+
+- A dashed polyline is drawn from the guess pin to the actual location.
+- The actual location appears as a distinct marker (green divIcon, visually different from the guess pin).
+- The map animates a `fitBounds` to frame both markers with padding, so the miss distance is *seen*, not just read.
+- The footer shows the distance prominently — formatted as meters under 1 km ("340 m away"), kilometers otherwise ("4.2 km away") — alongside the points earned.
+- The summary screen repeats per-round distances next to each location name, so the player can relive the whole game.
+
 ## Challenge links & seeding
 
 - Bare URL → generate random seed → immediately rewrite URL to `?c=<code>` (history.replaceState), so the game in progress is always shareable.
