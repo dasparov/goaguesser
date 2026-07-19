@@ -54,7 +54,7 @@ bckyrd/
 Phases: `picking → playing → scored → summary` (per game; `playing → scored` cycles 5×).
 
 1. On load, seeded shuffle deals **5 rounds + 2 backups** from the location pool.
-2. Each round: panorama shown (look-around only — Mapillary `sequence`, `tag`, `popup`, `cover` components disabled; `direction` shown but navigation disabled), player pans/zooms, drops pin on Leaflet map, submits.
+2. Each round: panorama shown (look-around only — Mapillary `sequence`, `direction`, `tag`, `popup`, `cover` components all disabled (`direction`'s arrows are click-to-navigate, so it must be off)), player pans/zooms, drops pin on Leaflet map, submits.
 3. Scored view: distance line drawn between guess and answer, round points shown, map fit to both markers.
 4. After round 5: summary screen with total and share button.
 
