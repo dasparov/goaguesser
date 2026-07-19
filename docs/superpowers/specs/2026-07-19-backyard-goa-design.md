@@ -32,6 +32,8 @@ bckyrd/
 │   │   ├── game.svelte.ts      # game state machine (runes): rounds, phase, scores
 │   │   ├── seed.ts             # seeded RNG + challenge-code encode/decode
 │   │   ├── score.ts            # haversine + points curve (pure functions)
+│   │   ├── share.ts            # result encode/decode, rank titles, share text
+│   │   ├── card.ts             # canvas scorecard PNG renderer
 │   │   └── locations.ts        # types + loader for generated locations.json
 │   ├── components/
 │   │   ├── PanoViewer.svelte   # Mapillary wrapper: init, moveTo, onDestroy cleanup
@@ -83,17 +85,52 @@ When the player submits a guess, the map must show them *how far off they were* 
 - Full points at ≤ 25 m. Zero at ≥ 15 km. In between: `5000 × (1 − d/15000)²` (quadratic falloff).
 - Haversine on WGS-84 sphere (R = 6371 km) — accurate to well under pin-drop precision at Goa scale.
 
-## Share text
+## Share & competition
 
-Summary screen, one tap — `navigator.share` on mobile, clipboard fallback on desktop:
+All competition rides on the share link — no backend. Four pieces:
+
+### 1. Emoji round bar
+
+Each round's distance becomes a spoiler-free emoji: 🎯 ≤ 100 m · 🟢 < 1 km · 🟡 < 5 km · 🔴 ≥ 5 km. Five emoji tell the story of a game at a glance.
+
+### 2. Goan rank titles
+
+Total score maps to a flavor title, shown on the summary screen and in the share text:
+
+| Score | Title |
+|---|---|
+| 0 – 6,000 | Confused Tourist |
+| 6,001 – 12,000 | Beach Regular |
+| 12,001 – 18,000 | Susegad Local |
+| 18,001 – 23,000 | Poder of the Village |
+| 23,001 – 25,000 | True Goenkar |
+
+(Titles are a constant table in `share.ts`; tweak freely.)
+
+### 3. Head-to-head via link
+
+The share URL carries the sharer's results: `?c=<code>&r=<encoded>&n=<name>`.
+
+- `r`: per-round scores, compactly encoded (5 × 0–5000 fits comfortably in base36). Decoded → the challenger's full game.
+- `n`: optional display name, URL-encoded, capped at 20 chars, sanitized to plain text on render.
+- A friend opening the link sees a challenge banner ("**Kapil** scored 18,240 — beat them"), after each round's reveal a per-round comparison ("You +3,900 · Kapil +4,120"), a running head-to-head total in the HUD, and a final comparison screen with per-round bars and a winner banner (🏆 / 🤝 on tie).
+- The friend's own share then carries *their* results — challenges chain naturally.
+- Malformed `r`/`n` are ignored; the game degrades to a plain challenge link.
+
+### 4. Share output
+
+One tap on the summary screen:
+
+- **Mobile** (`navigator.share` with file support): shares a canvas-rendered PNG scorecard — dark card with score, rank title, emoji bar, per-round distances — plus the text below.
+- **Desktop / fallback:** copies the text to clipboard.
 
 ```
-Backyard: Goa 🏖️
-📍📍📍📍📍 18,240 / 25,000
-Beat me: <URL>?c=<code>
+Backyard: Goa 🏖️ — Susegad Local
+🎯🟢🔴🟢🟡 18,240 / 25,000
+Beat me: <URL>?c=<code>&r=<encoded>&n=Kapil
 ```
 
-(Format is a constant in `Summary.svelte`; cheap to tweak.)
+Card rendering lives in `src/lib/card.ts` (offscreen canvas, no DOM screenshot libraries); result encoding/decoding and text building in `src/lib/share.ts`.
 
 ## Error handling
 
@@ -126,7 +163,8 @@ HUD permanently shows: Mapillary (imagery), © OpenStreetMap contributors, © CA
 - `score.ts`: haversine against known city-pair distances; points curve at 0 m / 25 m / 15 km / beyond; monotonicity.
 - `seed.ts`: same code → same deal (rounds + backups); different codes diverge; pool-version pinning holds after appending locations.
 - `game.svelte.ts`: phase transitions, round advance, backup substitution, score accumulation, restart.
-- No browser E2E. Library wrappers verified by manual smoke test.
+- `share.ts`: result encoding round-trips (5 scores → code → same 5 scores); malformed input → null; emoji bar thresholds; rank title bands at boundaries; name sanitization.
+- No browser E2E. Library wrappers and canvas card verified by manual smoke test.
 
 ## Out of scope (YAGNI)
 
