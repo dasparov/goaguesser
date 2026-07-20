@@ -100,6 +100,45 @@ export function applyCuratedLocations(pool: LocationPool, entries: CuratedEntry[
   };
 }
 
+export interface SpotEntry {
+  imageId: string;
+  name: string | null;
+}
+
+/**
+ * Parses the JSON array `[{"imageId", "name"?}]` exported by the curator page
+ * (`--import <file>`). Any other fields on an entry — including geometry, if the
+ * export ever grew one — are ignored: the Mapillary Graph API remains the only
+ * source of coordinates, exactly like a spots.txt line.
+ */
+export function parseImportJson(text: string): SpotEntry[] {
+  const data: unknown = JSON.parse(text);
+  if (!Array.isArray(data)) {
+    throw new Error('import file must contain a JSON array of {imageId, name?} entries');
+  }
+  return data.map((entry, i) => {
+    const imageId = (entry as { imageId?: unknown } | null)?.imageId;
+    if (typeof imageId !== 'string' || !imageId) {
+      throw new Error(`import entry ${i} is missing a string imageId`);
+    }
+    const rawName = (entry as { name?: unknown }).name;
+    return { imageId, name: typeof rawName === 'string' && rawName ? rawName : null };
+  });
+}
+
+/** Keeps the first occurrence of each image id; drops later duplicates. Used to merge
+ *  spots.txt entries with `--import`ed entries into one deduped run. */
+export function dedupeSpots(entries: SpotEntry[]): SpotEntry[] {
+  const seen = new Set<string>();
+  const result: SpotEntry[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry.imageId)) continue;
+    seen.add(entry.imageId);
+    result.push(entry);
+  }
+  return result;
+}
+
 export async function fetchImage(imageId: string, token: string): Promise<MapillaryImage> {
   const url = `https://graph.mapillary.com/${imageId}?access_token=${token}&fields=id,is_pano,computed_geometry`;
   const res = await fetch(url);

@@ -1,5 +1,13 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { parseSpots, validateImage, applyCuratedLocations, fetchImage, type CuratedEntry } from './curate-lib';
+import {
+  parseSpots,
+  validateImage,
+  applyCuratedLocations,
+  fetchImage,
+  parseImportJson,
+  dedupeSpots,
+  type CuratedEntry,
+} from './curate-lib';
 import type { LocationPool } from '../src/lib/locations';
 
 const POOL_PATH = 'src/data/locations.json';
@@ -14,6 +22,16 @@ function readTokenFromDotenv(): string | null {
   }
 }
 
+/** `--import <file.json>` — a JSON array exported by the curator page, merged with
+ *  spots.txt entries in the same run (spots.txt wins on a duplicate image id). */
+function readImportPath(argv: string[]): string | null {
+  const flagIndex = argv.indexOf('--import');
+  if (flagIndex === -1) return null;
+  const path = argv[flagIndex + 1];
+  if (!path) throw new Error('--import requires a file path, e.g. --import ~/Downloads/backyard-spots.json');
+  return path;
+}
+
 async function main() {
   const token = process.env.VITE_MAPILLARY_TOKEN ?? readTokenFromDotenv();
   if (!token) {
@@ -22,7 +40,12 @@ async function main() {
   }
   const pool = JSON.parse(readFileSync(POOL_PATH, 'utf8')) as LocationPool;
   const existing = new Set(pool.locations.map((l) => l.imageId));
-  const spots = parseSpots(readFileSync(SPOTS_PATH, 'utf8'));
+
+  const importPath = readImportPath(process.argv.slice(2));
+  const spotsFromFile = parseSpots(readFileSync(SPOTS_PATH, 'utf8'));
+  const imported = importPath ? parseImportJson(readFileSync(importPath, 'utf8')) : [];
+  if (importPath) console.log(`Importing ${imported.length} spot(s) from ${importPath}`);
+  const spots = dedupeSpots([...spotsFromFile, ...imported]);
   const curated: CuratedEntry[] = [];
 
   for (const spot of spots) {

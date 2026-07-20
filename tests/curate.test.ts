@@ -4,6 +4,8 @@ import {
   validateImage,
   toLocation,
   applyCuratedLocations,
+  parseImportJson,
+  dedupeSpots,
   type MapillaryImage,
 } from '../scripts/curate-lib';
 import type { Location, LocationPool } from '../src/lib/locations';
@@ -147,6 +149,58 @@ describe('applyCuratedLocations', () => {
     const result = applyCuratedLocations(emptyPool, []);
 
     expect(result).toEqual(emptyPool);
+  });
+});
+
+describe('parseImportJson', () => {
+  it('parses a JSON array of {imageId, name} exported by the curator page', () => {
+    const text = JSON.stringify([
+      { imageId: '111', name: 'Fontainhas' },
+      { imageId: '222', name: '' },
+      { imageId: '333' },
+    ]);
+    expect(parseImportJson(text)).toEqual([
+      { imageId: '111', name: 'Fontainhas' },
+      { imageId: '222', name: null },
+      { imageId: '333', name: null },
+    ]);
+  });
+
+  it('ignores any geometry fields present in the file — the API remains the source of coordinates', () => {
+    const text = JSON.stringify([{ imageId: '111', name: 'X', lat: 15.49, lng: 73.83 }]);
+    expect(parseImportJson(text)).toEqual([{ imageId: '111', name: 'X' }]);
+  });
+
+  it('throws a clear error when the file is not a JSON array', () => {
+    expect(() => parseImportJson(JSON.stringify({ imageId: '111' }))).toThrow(/array/i);
+  });
+
+  it('throws a clear error when an entry has no imageId', () => {
+    expect(() => parseImportJson(JSON.stringify([{ name: 'no id' }]))).toThrow(/imageId/i);
+  });
+
+  it('throws on malformed JSON', () => {
+    expect(() => parseImportJson('not json')).toThrow();
+  });
+});
+
+describe('dedupeSpots', () => {
+  it('keeps the first occurrence of each image id and drops later duplicates', () => {
+    const entries = [
+      { imageId: '1', name: 'From spots.txt' },
+      { imageId: '2', name: null },
+      { imageId: '1', name: 'From import' },
+      { imageId: '3', name: 'Third' },
+    ];
+    expect(dedupeSpots(entries)).toEqual([
+      { imageId: '1', name: 'From spots.txt' },
+      { imageId: '2', name: null },
+      { imageId: '3', name: 'Third' },
+    ]);
+  });
+
+  it('returns an empty array unchanged', () => {
+    expect(dedupeSpots([])).toEqual([]);
   });
 });
 
