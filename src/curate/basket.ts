@@ -1,6 +1,6 @@
 import type { BasketSpot } from './types';
 
-const STORAGE_KEY = 'backyard-basket';
+const STORAGE_KEY = 'goaguesser-basket';
 
 /** Reads the curator's kept-spots basket from localStorage. Never throws — a missing,
  *  corrupt, or inaccessible (private-mode) store just yields an empty basket. */

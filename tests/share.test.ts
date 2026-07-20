@@ -191,7 +191,7 @@ describe('emojiBar & share text', () => {
         url: 'https://x.test/?c=a.1', position: 2, fieldSize: 4,
       })
     ).toBe(
-      'Backyard: Goa 🏖️ — Susegad Local\n' +
+      'GoaGuesser 🏖️ — Susegad Local\n' +
       '🎯🟢🔴🟢🟡 18,240 / 25,000\n' +
       '2nd of 4 on the board\n' +
       'Add yours: https://x.test/?c=a.1'
@@ -204,7 +204,7 @@ describe('emojiBar & share text', () => {
         url: 'https://x.test/?c=a.1', position: 1, fieldSize: 1,
       })
     ).toBe(
-      'Backyard: Goa 🏖️ — True Goenkar\n' +
+      'GoaGuesser 🏖️ — True Goenkar\n' +
       '🎯🎯🎯🎯🎯 25,000 / 25,000\n' +
       'Beat me: https://x.test/?c=a.1'
     );

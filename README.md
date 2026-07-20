@@ -1,4 +1,4 @@
-# Backyard: Goa 🏖️
+# GoaGuesser 🏖️
 
 A GeoGuessr-style guessing game set entirely in Goa. See a 360° street view,
 drop a pin, score by proximity. 5 rounds, 25,000 max. Free stack: Mapillary +
@@ -31,10 +31,10 @@ link can curate, since it's read-only Graph API access on a public token.
 
 When you're happy with the basket, either:
 
-- **Export n spots** — downloads `backyard-spots.json`. Then run:
+- **Export n spots** — downloads `goaguesser-spots.json`. Then run:
 
   ```
-  npm run curate -- --import ~/Downloads/backyard-spots.json
+  npm run curate -- --import ~/Downloads/goaguesser-spots.json
   ```
 
 - **Copy for spots.txt** — copies `id # name` lines to your clipboard to

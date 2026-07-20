@@ -58,7 +58,7 @@
 
   <div class="absolute top-4 left-4 flex items-start gap-3 z-[900]">
     <div class="card-flat px-3 py-2" style="background: var(--panel)">
-      <h1 class="font-display text-lg leading-tight" style="color: var(--ink)">Backyard curator</h1>
+      <h1 class="font-display text-lg leading-tight" style="color: var(--ink)">GoaGuesser curator</h1>
       {#if status === 'zoom-in'}
         <p class="text-xs mt-0.5" style="color: var(--ink-faint)">zoom in to load panoramas</p>
       {:else if status === 'loading'}

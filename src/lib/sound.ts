@@ -2,7 +2,7 @@
 // (persisted to localStorage, default ON) and the AudioContext is created
 // lazily on first use (browsers block it before a user gesture) and reused.
 
-const STORAGE_KEY = 'backyard-sound';
+const STORAGE_KEY = 'goaguesser-sound';
 
 let enabled = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) !== 'off' : true;
 let ctx: AudioContext | null = null;

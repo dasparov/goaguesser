@@ -35,7 +35,7 @@
     return "It's a tie";
   });
 
-  let playerName = $state(localStorage.getItem('backyard-name') ?? '');
+  let playerName = $state(localStorage.getItem('goaguesser-name') ?? '');
   let copied = $state(false);
   let sharing = $state(false);
   let copyError = $state(false);
@@ -70,7 +70,7 @@
     copyError = false;
     fallbackUrl = null;
     try {
-      localStorage.setItem('backyard-name', playerName);
+      localStorage.setItem('goaguesser-name', playerName);
       const finalField = addToField(field, me);
       const finalBoard = standings(finalField);
       const myPosition = finalBoard.find((b) => b.player === me)?.position ?? finalBoard.length;
@@ -90,7 +90,7 @@
             position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,
           })),
         });
-        const file = new File([blob], 'backyard-goa.png', { type: 'image/png' });
+        const file = new File([blob], 'goaguesser.png', { type: 'image/png' });
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({ files: [file], text });
           return;

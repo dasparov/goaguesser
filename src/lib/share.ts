@@ -141,7 +141,7 @@ export function buildShareText(opts: {
   fieldSize: number;
 }): string {
   const head =
-    `Backyard: Goa 🏖️ — ${opts.rank}\n` +
+    `GoaGuesser 🏖️ — ${opts.rank}\n` +
     `${opts.bar} ${formatPoints(opts.total)} / ${formatPoints(MAX_GAME_POINTS)}\n`;
   // Alone on the board, it's a direct challenge; with a field, it's an invitation to join.
   return opts.fieldSize > 1

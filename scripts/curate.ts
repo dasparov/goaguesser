@@ -28,7 +28,7 @@ function readImportPath(argv: string[]): string | null {
   const flagIndex = argv.indexOf('--import');
   if (flagIndex === -1) return null;
   const path = argv[flagIndex + 1];
-  if (!path) throw new Error('--import requires a file path, e.g. --import ~/Downloads/backyard-spots.json');
+  if (!path) throw new Error('--import requires a file path, e.g. --import ~/Downloads/goaguesser-spots.json');
   return path;
 }
 

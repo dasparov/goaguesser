@@ -18,7 +18,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'backyard-spots.json';
+    a.download = 'goaguesser-spots.json';
     a.click();
     URL.revokeObjectURL(url);
     justExported = true;
@@ -73,7 +73,7 @@
     </button>
     {#if justExported}
       <p class="font-mono text-[10px] leading-tight break-all" style="color: var(--ink-faint)">
-        npm run curate -- --import ~/Downloads/backyard-spots.json
+        npm run curate -- --import ~/Downloads/goaguesser-spots.json
       </p>
     {/if}
   </div>

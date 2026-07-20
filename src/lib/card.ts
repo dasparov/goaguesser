@@ -58,6 +58,14 @@ function fillTextSpaced(ctx: CanvasRenderingContext2D, text: string, x: number, 
   }
 }
 
+/** Visual width of `fillTextSpaced`'s output — sum of glyph widths plus the
+ *  inter-glyph spacing (no trailing spacing after the last glyph). */
+function measureSpaced(ctx: CanvasRenderingContext2D, text: string, spacing: number): number {
+  let w = 0;
+  for (const ch of text) w += ctx.measureText(ch).width;
+  return w + spacing * Math.max(0, text.length - 1);
+}
+
 /**
  * The same flat geometric trophy as `Trophy.svelte`, drawn with canvas paths
  * instead of the 🏆 glyph (docs/superpowers/specs/visual-identity.md,
@@ -138,10 +146,12 @@ export async function renderShareCard(opts: {
   ctx.fillStyle = CARD_SAND;
   ctx.fillRect(0, 0, W, height);
 
-  // Header: mono caps, letterspaced.
+  // Header: mono caps, letterspaced — wordmark left, round count right.
   ctx.fillStyle = CARD_INK_FAINT;
   ctx.font = `bold 24px ${MONO_FONT}`;
-  fillTextSpaced(ctx, 'BACKYARD · GOA', MARGIN, 74, 3);
+  fillTextSpaced(ctx, 'GOAGUESSER', MARGIN, 74, 3);
+  const roundsLabel = '5 ROUNDS';
+  fillTextSpaced(ctx, roundsLabel, W - MARGIN - measureSpaced(ctx, roundsLabel, 3), 74, 3);
 
   // Chart: four concentric rings + this player's five shots.
   const R = 220;

@@ -25,7 +25,7 @@
 </script>
 
 <div class="absolute top-4 left-4 z-[1000] max-w-[calc(100vw-2rem)] bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-  <h1 class="text-sm font-bold uppercase tracking-wide text-[var(--azulejo)]" style="font-family: var(--font-display)">Backyard: Goa</h1>
+  <h1 class="text-sm font-bold uppercase tracking-wide text-[var(--azulejo)]" style="font-family: var(--font-display)">GoaGuesser</h1>
   <div class="h-4 w-px bg-[var(--rule)]"></div>
   <span class="text-xs font-mono tabular-nums text-[var(--ink-faint)]">Round {round + 1}/5</span>
   <div class="h-4 w-px bg-[var(--rule)]"></div>
