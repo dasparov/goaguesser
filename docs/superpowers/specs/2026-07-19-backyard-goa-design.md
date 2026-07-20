@@ -107,30 +107,41 @@ Total score maps to a flavor title, shown on the summary screen and in the share
 
 (Titles are a constant table in `share.ts`; tweak freely.)
 
-### 3. Head-to-head via link
+### 3. An accumulating field via link
 
-The share URL carries the sharer's results: `?c=<code>&r=<encoded>&n=<name>`.
+The share URL carries *everyone who has played this link*, not just one rival: `?c=<code>&p=<field>`.
 
-- `r`: per-round scores, compactly encoded (5 × 0–5000 fits comfortably in base36). Decoded → the challenger's full game.
-- `n`: optional display name, URL-encoded, capped at 20 chars, sanitized to plain text on render.
-- A friend opening the link sees a challenge banner ("**Kapil** scored 18,240 — beat them"), after each round's reveal a per-round comparison ("You +3,900 · Kapil +4,120"), a running head-to-head total in the HUD, and a final comparison screen with per-round bars and a winner banner (🏆 / 🤝 on tie).
-- The friend's own share then carries *their* results — challenges chain naturally.
-- Malformed `r`/`n` are ignored; the game degrades to a plain challenge link.
+- `p`: the field — every finisher's name + per-round scores, packed with fixed-width fields so parsing is positional (see `src/lib/share.ts`, `encodeField`/`decodeField`). Up to `MAX_FIELD` (8) players ride on one link.
+- A friend opening the link sees, on the HUD's opening banner, who currently leads the board and how many players are on it ("Ana leads with 21,340 — 3 on the board"); after each round's reveal, their own round score beside the current top few players' scores for that round (legible on a phone even with 8 players — the footer shows the leaders plus a "+N more" count, not the whole field); a running comparison against the current leader in the HUD; and, on the summary screen, a full standings table (position, name, total, 🏆 on the leader, their own row emphasized) plus per-round comparison bars against the leader.
+- Finishing the game adds the player to the field via `addToField` (replacing their own prior entry if they've played this link before, matched case-insensitively by name; dropping the lowest scorer once the board is full) before the next share URL is built.
+- Each finisher's own share then carries the *updated* field — the standings accumulate as the link travels through a chat.
+- A malformed `p` is ignored; the game degrades to a plain challenge link with an empty field.
 
 ### 4. Share output
 
-One tap on the summary screen:
+One tap on the summary screen. The button reads "Add your score to the board" once the field already has other players on it, or "Share your score" when the player is alone (`fieldSize === 1` after they're added).
 
-- **Mobile** (`navigator.share` with file support): shares a canvas-rendered PNG scorecard — dark card with score, rank title, emoji bar, per-round distances — plus the text below.
+- **Mobile** (`navigator.share` with file support): shares a canvas-rendered PNG scorecard — dark card with score, rank title, emoji bar, standings table, per-round distances — plus the text below.
 - **Desktop / fallback:** copies the text to clipboard.
+
+With other players already on the board (`buildShareText` with `fieldSize > 1`):
 
 ```
 Backyard: Goa 🏖️ — Susegad Local
 🎯🟢🔴🟢🟡 18,240 / 25,000
-Beat me: <URL>?c=<code>&r=<encoded>&n=Kapil
+2nd of 4 on the board
+Add yours: <URL>?c=<code>&p=<field>
 ```
 
-Card rendering lives in `src/lib/card.ts` (offscreen canvas, no DOM screenshot libraries); result encoding/decoding and text building in `src/lib/share.ts`.
+Alone on the board (`fieldSize === 1`):
+
+```
+Backyard: Goa 🏖️ — True Goenkar
+🎯🎯🎯🎯🎯 25,000 / 25,000
+Beat me: <URL>?c=<code>&p=<field>
+```
+
+Card rendering lives in `src/lib/card.ts` (offscreen canvas, no DOM screenshot libraries); field encoding/decoding, standings, and text building in `src/lib/share.ts`.
 
 ## Error handling
 

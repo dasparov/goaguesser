@@ -25,6 +25,8 @@
 - Attribution for Mapillary, OpenStreetMap, and CARTO must be visible in the UI at all times.
 - Emoji distance bands: 🎯 ≤ 100 m · 🟢 < 1 km · 🟡 < 5 km · 🔴 ≥ 5 km.
 - Rank titles (total score): 0–6000 Confused Tourist · 6001–12000 Beach Regular · 12001–18000 Susegad Local · 18001–23000 Poder of the Village · 23001–25000 True Goenkar.
+- Field model: a challenge link carries up to `MAX_FIELD` (8) players via `?c=<code>&p=<field>` — everyone who has played it, not just one rival. When the board is full, the lowest scorer drops off as a new player is added; a returning player (same name, case-insensitive) replaces their own prior entry rather than duplicating it. See `src/lib/share.ts` (Task 5) for the exact encoding.
+- Visual identity is locked in `docs/superpowers/specs/visual-identity.md` and is binding on Tasks 8–10 (palette tokens, type stacks, layout ratios). Do not substitute ad-hoc Tailwind palette classes (`bg-orange-500`, `text-slate-500`, etc.) for the approved tokens.
 - Commit after every green test cycle. Conventional-commit style messages (`feat:`, `test:`, `chore:`).
 
 **Manual prerequisites (owner: Kapil, needed from Task 9 onward):** a free Mapillary client token in `.env`, and ≥ 7 real curated locations via the Task 7 script. Tasks 1–8 run fully without either.
@@ -509,17 +511,22 @@ git commit -m "feat: seeded RNG, challenge codes, deterministic 5+2 deal with po
 - Create: `src/lib/share.ts`
 - Test: `tests/share.test.ts`
 
+**The field model:** a challenge link carries *everyone who has played it*, not just the last sharer. Each finisher adds themselves and re-shares, so a standings table accumulates as the link travels through a chat. The URL is the leaderboard — there is no server.
+
+URL shape: `?c=<code>&p=<field>`. The field is player entries joined by `~`; each entry is 15 base36 score characters followed by the player's name. Fixed-width scores make parsing positional and trivial.
+
 **Interfaces:**
 - Consumes: `ChallengeCode`, `encodeChallenge`, `decodeChallenge`, `ROUNDS` from `seed.ts`; `emojiForDistance`, `MAX_POINTS`, `MAX_GAME_POINTS` from `score.ts`.
-- Produces: `encodeResults(scores: number[]): string` · `decodeResults(s: string): number[] | null` · `sanitizeName(raw: string): string` · `interface Challenger { name: string | null; scores: number[]; total: number }` · `parseGameParams(search: string): { code: ChallengeCode | null; challenger: Challenger | null }` · `buildShareUrl(baseUrl: string, code: ChallengeCode, scores: number[], name: string | null): string` · `rankForScore(total: number): string` · `emojiBar(distances: number[]): string` · `buildShareText(opts: { rank: string; bar: string; total: number; url: string }): string` · `formatPoints(n: number): string`.
+- Produces: `MAX_FIELD` · `interface Player { name: string | null; scores: number[]; total: number }` · `makePlayer(name: string | null, scores: number[]): Player` · `encodeResults(scores: number[]): string` · `decodeResults(s: string): number[] | null` · `sanitizeName(raw: string): string` · `encodeField(field: Player[]): string` · `decodeField(s: string): Player[]` · `addToField(field: Player[], me: Player): Player[]` · `standings(field: Player[]): Array<{ position: number; player: Player }>` · `parseGameParams(search: string): { code: ChallengeCode | null; field: Player[] }` · `buildShareUrl(baseUrl: string, code: ChallengeCode, field: Player[]): string` · `rankForScore(total: number): string` · `emojiBar(distances: number[]): string` · `ordinal(n: number): string` · `buildShareText(opts: { rank: string; bar: string; total: number; url: string; position: number; fieldSize: number }): string` · `formatPoints(n: number): string`.
 
 - [ ] **Step 1: Write failing tests** — `tests/share.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
 import {
-  encodeResults, decodeResults, sanitizeName, parseGameParams,
-  buildShareUrl, rankForScore, emojiBar, buildShareText, formatPoints,
+  encodeResults, decodeResults, sanitizeName, parseGameParams, buildShareUrl,
+  rankForScore, emojiBar, buildShareText, formatPoints, makePlayer,
+  encodeField, decodeField, addToField, standings, ordinal, MAX_FIELD,
 } from '../src/lib/share';
 
 describe('formatPoints', () => {
@@ -551,39 +558,126 @@ describe('sanitizeName', () => {
   it('trims and caps at 20 chars', () => {
     expect(sanitizeName('  ' + 'a'.repeat(30))).toBe('a'.repeat(20));
   });
-  it('strips angle brackets, ampersands and quotes', () => {
-    expect(sanitizeName('<b>K&"a\'p</b>')).toBe('bKap/b');
+  it('strips markup, quotes and the field separator', () => {
+    expect(sanitizeName('<b>K&"a\'p~x</b>')).toBe('bKapxb');
+  });
+  it('collapses runs of whitespace', () => {
+    expect(sanitizeName('Kapil   Das')).toBe('Kapil Das');
   });
 });
 
+describe('makePlayer', () => {
+  it('totals the scores', () => {
+    expect(makePlayer('Kapil', [1000, 2000, 3000, 4000, 5000])).toEqual({
+      name: 'Kapil', scores: [1000, 2000, 3000, 4000, 5000], total: 15000,
+    });
+  });
+  it('sanitizes the name and keeps an empty one null', () => {
+    expect(makePlayer('<Ana>', [0, 0, 0, 0, 0]).name).toBe('Ana');
+    expect(makePlayer('!!!', [0, 0, 0, 0, 0]).name).toBeNull();
+  });
+});
+
+describe('field encoding', () => {
+  const kapil = makePlayer('Kapil', [1000, 1000, 1000, 1000, 1000]);
+  const ana = makePlayer('Ana', [2000, 2000, 2000, 2000, 2000]);
+
+  it('round-trips a multi-player field', () => {
+    expect(decodeField(encodeField([kapil, ana]))).toEqual([kapil, ana]);
+  });
+  it('round-trips a nameless player', () => {
+    const anon = makePlayer(null, [500, 500, 500, 500, 500]);
+    expect(decodeField(encodeField([anon]))).toEqual([anon]);
+  });
+  it('drops entries with unreadable scores but keeps the rest', () => {
+    expect(decodeField(encodeField([kapil]) + '~garbage')).toEqual([kapil]);
+  });
+  it('returns an empty field for nonsense', () => {
+    expect(decodeField('nonsense')).toEqual([]);
+    expect(decodeField('')).toEqual([]);
+  });
+  it('caps a decoded field at MAX_FIELD players', () => {
+    const many = Array.from({ length: MAX_FIELD + 4 }, (_, i) =>
+      makePlayer(`P${i}`, [i, 0, 0, 0, 0]));
+    expect(decodeField(encodeField(many))).toHaveLength(MAX_FIELD);
+  });
+});
+
+describe('addToField', () => {
+  const kapil = makePlayer('Kapil', [1000, 1000, 1000, 1000, 1000]); // 5000
+  const ana = makePlayer('Ana', [2000, 2000, 2000, 2000, 2000]);     // 10000
+
+  it('appends a new player and sorts by total, highest first', () => {
+    expect(addToField([kapil], ana).map((p) => p.name)).toEqual(['Ana', 'Kapil']);
+  });
+  it('replaces a returning player rather than duplicating them', () => {
+    const kapilAgain = makePlayer('Kapil', [5000, 5000, 5000, 5000, 5000]);
+    const out = addToField([kapil, ana], kapilAgain);
+    expect(out.map((p) => p.name)).toEqual(['Kapil', 'Ana']);
+    expect(out[0].total).toBe(25000);
+  });
+  it('matches a returning player case-insensitively', () => {
+    expect(addToField([kapil], makePlayer('KAPIL', [0, 0, 0, 0, 0]))).toHaveLength(1);
+  });
+  it('keeps nameless players distinct', () => {
+    const anon = makePlayer(null, [0, 0, 0, 0, 0]);
+    expect(addToField([anon], makePlayer(null, [1, 0, 0, 0, 0]))).toHaveLength(2);
+  });
+  it('drops the lowest scorer once the board is full', () => {
+    const full = Array.from({ length: MAX_FIELD }, (_, i) =>
+      makePlayer(`P${i}`, [1000 + i, 0, 0, 0, 0]));
+    const out = addToField(full, makePlayer('Winner', [5000, 5000, 5000, 5000, 5000]));
+    expect(out).toHaveLength(MAX_FIELD);
+    expect(out[0].name).toBe('Winner');
+    expect(out.map((p) => p.name)).not.toContain('P0'); // lowest total
+  });
+});
+
+describe('standings', () => {
+  it('numbers players from 1, highest total first', () => {
+    const a = makePlayer('A', [1000, 0, 0, 0, 0]);
+    const b = makePlayer('B', [3000, 0, 0, 0, 0]);
+    expect(standings([a, b])).toEqual([
+      { position: 1, player: b },
+      { position: 2, player: a },
+    ]);
+  });
+});
+
+describe('ordinal', () => {
+  it.each([[1, '1st'], [2, '2nd'], [3, '3rd'], [4, '4th'], [11, '11th'], [21, '21st']])(
+    '%d → %s', (n, s) => expect(ordinal(n)).toBe(s));
+});
+
 describe('parseGameParams', () => {
-  it('parses a full challenge URL', () => {
-    const r = encodeResults([1000, 2000, 3000, 4000, 5000]);
-    const { code, challenger } = parseGameParams(`?c=5.1&r=${r}&n=Kapil`);
+  it('parses a code and a full field', () => {
+    const field = [makePlayer('Kapil', [1000, 2000, 3000, 4000, 5000])];
+    const { code, field: parsed } = parseGameParams(`?c=5.1&p=${encodeField(field)}`);
     expect(code).toEqual({ seed: 5, poolVersion: 1 });
-    expect(challenger).toEqual({ name: 'Kapil', scores: [1000, 2000, 3000, 4000, 5000], total: 15000 });
+    expect(parsed).toEqual(field);
   });
-  it('gives a nameless challenger without n', () => {
-    const r = encodeResults([0, 0, 0, 0, 0]);
-    expect(parseGameParams(`?c=5.1&r=${r}`).challenger?.name).toBeNull();
-  });
-  it('drops the challenger on malformed r but keeps the code', () => {
-    const { code, challenger } = parseGameParams('?c=5.1&r=nonsense');
+  it('drops the field on malformed p but keeps the code', () => {
+    const { code, field } = parseGameParams('?c=5.1&p=nonsense');
     expect(code).toEqual({ seed: 5, poolVersion: 1 });
-    expect(challenger).toBeNull();
+    expect(field).toEqual([]);
   });
-  it('returns nulls for an empty query', () => {
-    expect(parseGameParams('')).toEqual({ code: null, challenger: null });
+  it('returns an empty field for an empty query', () => {
+    expect(parseGameParams('')).toEqual({ code: null, field: [] });
   });
 });
 
 describe('buildShareUrl', () => {
-  it('builds a decodable URL', () => {
-    const url = buildShareUrl('https://x.test/', { seed: 9, poolVersion: 2 }, [1, 2, 3, 4, 5], 'Kapil');
-    const { code, challenger } = parseGameParams(new URL(url).search);
-    expect(code).toEqual({ seed: 9, poolVersion: 2 });
-    expect(challenger?.scores).toEqual([1, 2, 3, 4, 5]);
-    expect(challenger?.name).toBe('Kapil');
+  it('builds a URL that parses back to the same field', () => {
+    const field = [makePlayer('Kapil', [1, 2, 3, 4, 5]), makePlayer('Ana', [9, 9, 9, 9, 9])];
+    const url = buildShareUrl('https://x.test/', { seed: 9, poolVersion: 2 }, field);
+    const parsed = parseGameParams(new URL(url).search);
+    expect(parsed.code).toEqual({ seed: 9, poolVersion: 2 });
+    expect(parsed.field).toEqual(field);
+  });
+  it('survives a name containing a space', () => {
+    const field = [makePlayer('Kapil Das', [1, 2, 3, 4, 5])];
+    const url = buildShareUrl('https://x.test/', { seed: 1, poolVersion: 1 }, field);
+    expect(parseGameParams(new URL(url).search).field[0].name).toBe('Kapil Das');
   });
 });
 
@@ -601,15 +695,35 @@ describe('emojiBar & share text', () => {
   it('maps distances to the emoji story', () => {
     expect(emojiBar([50, 500, 3000, 9000, 101])).toBe('🎯🟢🟡🔴🟢');
   });
-  it('builds the share text', () => {
+  it('invites the next player when others are on the board', () => {
     expect(
-      buildShareText({ rank: 'Susegad Local', bar: '🎯🟢🔴🟢🟡', total: 18240, url: 'https://x.test/?c=a.1' })
-    ).toBe('Backyard: Goa 🏖️ — Susegad Local\n🎯🟢🔴🟢🟡 18,240 / 25,000\nBeat me: https://x.test/?c=a.1');
+      buildShareText({
+        rank: 'Susegad Local', bar: '🎯🟢🔴🟢🟡', total: 18240,
+        url: 'https://x.test/?c=a.1', position: 2, fieldSize: 4,
+      })
+    ).toBe(
+      'Backyard: Goa 🏖️ — Susegad Local\n' +
+      '🎯🟢🔴🟢🟡 18,240 / 25,000\n' +
+      '2nd of 4 on the board\n' +
+      'Add yours: https://x.test/?c=a.1'
+    );
+  });
+  it('challenges directly when the board is empty', () => {
+    expect(
+      buildShareText({
+        rank: 'True Goenkar', bar: '🎯🎯🎯🎯🎯', total: 25000,
+        url: 'https://x.test/?c=a.1', position: 1, fieldSize: 1,
+      })
+    ).toBe(
+      'Backyard: Goa 🏖️ — True Goenkar\n' +
+      '🎯🎯🎯🎯🎯 25,000 / 25,000\n' +
+      'Beat me: https://x.test/?c=a.1'
+    );
   });
 });
 ```
 
-- [ ] **Step 2: Run to verify failure** — `npm test` → FAIL: cannot resolve module.
+- [ ] **Step 2: Run to verify failure** — `npm test` → FAIL: cannot resolve module `../src/lib/share`.
 
 - [ ] **Step 3: Implement** — `src/lib/share.ts`:
 
@@ -618,6 +732,11 @@ import { decodeChallenge, encodeChallenge, ROUNDS, type ChallengeCode } from './
 import { emojiForDistance, MAX_GAME_POINTS, MAX_POINTS } from './score';
 
 const SCORE_CHARS = 3; // base36: 'zzz' = 46655 ≥ 5000
+const FIELD_SEP = '~'; // unreserved in RFC 3986, so it survives a query string intact
+const SCORE_BLOCK = ROUNDS * SCORE_CHARS;
+
+/** Most players a single link will carry. Beyond this the lowest scorer drops off. */
+export const MAX_FIELD = 8;
 
 export function formatPoints(n: number): string {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -628,7 +747,7 @@ export function encodeResults(scores: number[]): string {
 }
 
 export function decodeResults(s: string): number[] | null {
-  if (!new RegExp(`^[0-9a-z]{${ROUNDS * SCORE_CHARS}}$`).test(s)) return null;
+  if (!new RegExp(`^[0-9a-z]{${SCORE_BLOCK}}$`).test(s)) return null;
   const scores: number[] = [];
   for (let i = 0; i < ROUNDS; i++) {
     const v = parseInt(s.slice(i * SCORE_CHARS, (i + 1) * SCORE_CHARS), 36);
@@ -638,42 +757,82 @@ export function decodeResults(s: string): number[] | null {
   return scores;
 }
 
+/**
+ * Names are rendered as plain text and packed into a URL, so keep them to
+ * letters, digits and single spaces. This also removes FIELD_SEP, which would
+ * otherwise split one player into two.
+ */
 export function sanitizeName(raw: string): string {
-  return raw.replace(/[<>&"']/g, '').trim().slice(0, 20);
+  return raw.replace(/[^A-Za-z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20);
 }
 
-export interface Challenger {
+export interface Player {
   name: string | null;
   scores: number[];
   total: number;
 }
 
-export function parseGameParams(search: string): {
-  code: ChallengeCode | null;
-  challenger: Challenger | null;
-} {
-  const params = new URLSearchParams(search);
-  const code = params.has('c') ? decodeChallenge(params.get('c')!) : null;
-  let challenger: Challenger | null = null;
-  const scores = params.has('r') ? decodeResults(params.get('r')!) : null;
-  if (scores) {
-    const rawName = params.get('n');
-    const name = rawName ? sanitizeName(rawName) || null : null;
-    challenger = { name, scores, total: scores.reduce((a, b) => a + b, 0) };
-  }
-  return { code, challenger };
+export function makePlayer(name: string | null, scores: number[]): Player {
+  const clean = name ? sanitizeName(name) : '';
+  return {
+    name: clean || null,
+    scores,
+    total: scores.reduce((a, b) => a + b, 0),
+  };
 }
 
-export function buildShareUrl(
-  baseUrl: string,
-  code: ChallengeCode,
-  scores: number[],
-  name: string | null
-): string {
+export function encodeField(field: Player[]): string {
+  return field
+    .slice(0, MAX_FIELD)
+    .map((p) => encodeResults(p.scores) + (p.name ?? ''))
+    .join(FIELD_SEP);
+}
+
+/** Unreadable entries are skipped; a mangled link degrades rather than failing. */
+export function decodeField(s: string): Player[] {
+  if (!s) return [];
+  const field: Player[] = [];
+  for (const entry of s.split(FIELD_SEP)) {
+    const scores = decodeResults(entry.slice(0, SCORE_BLOCK));
+    if (!scores) continue;
+    field.push(makePlayer(entry.slice(SCORE_BLOCK) || null, scores));
+    if (field.length === MAX_FIELD) break;
+  }
+  return field;
+}
+
+function sameName(a: Player, b: Player): boolean {
+  return a.name !== null && b.name !== null && a.name.toLowerCase() === b.name.toLowerCase();
+}
+
+/** Adds (or replaces) a player, keeps the board sorted, and trims the tail. */
+export function addToField(field: Player[], me: Player): Player[] {
+  return [...field.filter((p) => !sameName(p, me)), me]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, MAX_FIELD);
+}
+
+export function standings(field: Player[]): Array<{ position: number; player: Player }> {
+  return [...field]
+    .sort((a, b) => b.total - a.total)
+    .map((player, i) => ({ position: i + 1, player }));
+}
+
+export function parseGameParams(search: string): {
+  code: ChallengeCode | null;
+  field: Player[];
+} {
+  const params = new URLSearchParams(search);
+  return {
+    code: params.has('c') ? decodeChallenge(params.get('c')!) : null,
+    field: params.has('p') ? decodeField(params.get('p')!) : [],
+  };
+}
+
+export function buildShareUrl(baseUrl: string, code: ChallengeCode, field: Player[]): string {
   const url = new URL(baseUrl);
   url.searchParams.set('c', encodeChallenge(code));
-  url.searchParams.set('r', encodeResults(scores));
-  if (name) url.searchParams.set('n', sanitizeName(name));
+  url.searchParams.set('p', encodeField(field));
   return url.toString();
 }
 
@@ -693,8 +852,27 @@ export function emojiBar(distances: number[]): string {
   return distances.map(emojiForDistance).join('');
 }
 
-export function buildShareText(opts: { rank: string; bar: string; total: number; url: string }): string {
-  return `Backyard: Goa 🏖️ — ${opts.rank}\n${opts.bar} ${formatPoints(opts.total)} / ${formatPoints(MAX_GAME_POINTS)}\nBeat me: ${opts.url}`;
+export function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
+
+export function buildShareText(opts: {
+  rank: string;
+  bar: string;
+  total: number;
+  url: string;
+  position: number;
+  fieldSize: number;
+}): string {
+  const head =
+    `Backyard: Goa 🏖️ — ${opts.rank}\n` +
+    `${opts.bar} ${formatPoints(opts.total)} / ${formatPoints(MAX_GAME_POINTS)}\n`;
+  // Alone on the board, it's a direct challenge; with a field, it's an invitation to join.
+  return opts.fieldSize > 1
+    ? head + `${ordinal(opts.position)} of ${opts.fieldSize} on the board\nAdd yours: ${opts.url}`
+    : head + `Beat me: ${opts.url}`;
 }
 ```
 
@@ -704,7 +882,7 @@ export function buildShareText(opts: { rank: string; bar: string; total: number;
 
 ```bash
 git add src/lib/share.ts tests/share.test.ts
-git commit -m "feat: share encoding — results codec, challenger parsing, ranks, emoji bar, share text"
+git commit -m "feat: share encoding — accumulating field, standings, ranks, emoji bar, share text"
 ```
 
 ---
@@ -1236,115 +1414,222 @@ git commit -m "feat: Mapillary and Leaflet wrapper components with cleanup and r
 
 **Files:**
 - Create: `src/components/Hud.svelte`, `src/components/GameFooter.svelte`
-- Modify: `src/App.svelte` (replace scaffold placeholder entirely)
+- Modify: `src/App.svelte` (replace scaffold placeholder entirely), `src/app.css` (add the locked design tokens)
+
+**Styling approach (binding for Tasks 9–10):** the palette, shadow and font-stack tokens from `docs/superpowers/specs/visual-identity.md` are defined once as CSS custom properties in `src/app.css` (light default, dark via both `prefers-color-scheme` and a `[data-theme]` override, per that spec). Components reference them with arbitrary-value Tailwind classes, e.g. `bg-[var(--azulejo)]` / `text-[var(--ink-soft)]`, plus an inline `style="font-family: var(--font-display)"` where the display serif is needed (Tailwind has no arbitrary-value syntax for `font-family` shorthand tokens). No `<style>` blocks are used, so every component stays consistent with this one mechanism. **Button/chip colors:** per the palette table, `--amber` and `--emerald-solid` are reserved exclusively for the guess/answer map markers, and `--laterite` is signal-only (the reveal line, miss distance, rival/leader bars, challenge banner) — so all general-purpose buttons and primary UI accents use `--azulejo`, not amber or emerald as the earlier draft did.
 
 **Interfaces:**
-- Consumes: everything produced by Tasks 2–8.
-- Produces: `Hud` props `{ round: number; totalScore: number; challenger: Challenger | null }` · `GameFooter` props `{ phase: Phase; result: RoundResult | null; canSubmit: boolean; isLastRound: boolean; challengerRoundScore: number | null; onsubmit: () => void; onnext: () => void }` · a playable 5-round game (summary screen arrives in Task 10).
+- Consumes: everything produced by Tasks 2–8; `Player`, `standings` from `share.ts` (Task 5).
+- Produces: `Hud` props `{ round: number; totalScore: number; field: Player[] }` · `GameFooter` props `{ phase: Phase; result: RoundResult | null; canSubmit: boolean; isLastRound: boolean; field: Player[]; roundIndex: number; onsubmit: () => void; onnext: () => void }` · a playable 5-round game (summary screen arrives in Task 10).
 
-- [ ] **Step 1: Write `src/components/Hud.svelte`**
+- [ ] **Step 1: Add the design tokens to `src/app.css`**
+
+Replace `src/app.css` entirely with:
+
+```css
+@import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
+@import 'mapillary-js/dist/mapillary.css';
+
+:root {
+  /* Light theme (default) — docs/superpowers/specs/visual-identity.md */
+  --porcelain: #F6F8FB;
+  --panel: #FFFFFF;
+  --ink: #0E1F2E;
+  --ink-soft: #4A6076;
+  --ink-faint: #8098AE;
+  --rule: #DBE4EE;
+  --azulejo: #2C5AA8;
+  --azulejo-pale: #E2EAF7;
+  --laterite: #BE4228;
+  --emerald-solid: #167851;
+  --amber: #C8801A;
+  --shadow: 0 1px 2px rgba(14, 31, 46, .06), 0 8px 24px -12px rgba(14, 31, 46, .18);
+
+  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Iowan Old Style', Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --porcelain: #0A141D;
+    --panel: #12212E;
+    --ink: #E6EDF5;
+    --ink-soft: #9BB0C4;
+    --ink-faint: #63798E;
+    --rule: #23384A;
+    --azulejo: #79A5E8;
+    --azulejo-pale: #1B3050;
+    --laterite: #E8674A;
+    --emerald-solid: #3FB489;
+    --amber: #E0A340;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+  }
+}
+
+/* Explicit theme override (e.g. a future in-app toggle) wins over the OS preference either way. */
+:root[data-theme='dark'] {
+  --porcelain: #0A141D;
+  --panel: #12212E;
+  --ink: #E6EDF5;
+  --ink-soft: #9BB0C4;
+  --ink-faint: #63798E;
+  --rule: #23384A;
+  --azulejo: #79A5E8;
+  --azulejo-pale: #1B3050;
+  --laterite: #E8674A;
+  --emerald-solid: #3FB489;
+  --amber: #E0A340;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+}
+
+:root[data-theme='light'] {
+  --porcelain: #F6F8FB;
+  --panel: #FFFFFF;
+  --ink: #0E1F2E;
+  --ink-soft: #4A6076;
+  --ink-faint: #8098AE;
+  --rule: #DBE4EE;
+  --azulejo: #2C5AA8;
+  --azulejo-pale: #E2EAF7;
+  --laterite: #BE4228;
+  --emerald-solid: #167851;
+  --amber: #C8801A;
+  --shadow: 0 1px 2px rgba(14, 31, 46, .06), 0 8px 24px -12px rgba(14, 31, 46, .18);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--porcelain);
+  color: var(--ink);
+}
+```
+
+- [ ] **Step 2: Write `src/components/Hud.svelte`**
 
 ```svelte
 <script lang="ts">
-  import type { Challenger } from '../lib/share';
-  import { formatPoints } from '../lib/share';
+  import type { Player } from '../lib/share';
+  import { formatPoints, standings } from '../lib/share';
 
-  let { round, totalScore, challenger }: {
+  let { round, totalScore, field }: {
     round: number;
     totalScore: number;
-    challenger: Challenger | null;
+    field: Player[];
   } = $props();
 
-  const challengerRunning = $derived(
-    challenger ? challenger.scores.slice(0, round).reduce((a, b) => a + b, 0) : 0
+  // `field` is fixed at load time (whatever the shared link carried) — it
+  // does not include the current run until the player finishes and shares.
+  // "Leader" is simply the top scorer already on the board, if anyone is.
+  const leader = $derived(field.length > 0 ? standings(field)[0].player : null);
+  const leaderRunning = $derived(
+    leader ? leader.scores.slice(0, round).reduce((a, b) => a + b, 0) : 0
   );
 </script>
 
-<div class="absolute top-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg px-4 py-2 flex items-center gap-4 shadow-xl">
-  <h1 class="text-sm font-bold uppercase tracking-wide text-amber-400">Backyard: Goa</h1>
-  <div class="h-4 w-px bg-slate-700"></div>
-  <span class="text-xs font-mono text-slate-400">Round {round + 1}/5</span>
-  <div class="h-4 w-px bg-slate-700"></div>
-  <span class="text-xs font-mono text-slate-300">You {formatPoints(totalScore)}</span>
-  {#if challenger}
-    <span class="text-xs font-mono text-orange-400">
-      {challenger.name ?? 'Rival'} {formatPoints(challengerRunning)}
+<div class="absolute top-4 left-4 z-[1000] bg-[var(--panel)]/95 backdrop-blur border border-[var(--rule)] rounded-[5px] px-4 py-2 flex items-center gap-4 shadow-[var(--shadow)]">
+  <h1 class="text-sm font-bold uppercase tracking-wide text-[var(--azulejo)]" style="font-family: var(--font-display)">Backyard: Goa</h1>
+  <div class="h-4 w-px bg-[var(--rule)]"></div>
+  <span class="text-xs font-mono tabular-nums text-[var(--ink-faint)]">Round {round + 1}/5</span>
+  <div class="h-4 w-px bg-[var(--rule)]"></div>
+  <span class="text-xs font-mono tabular-nums text-[var(--ink)]">You {formatPoints(totalScore)}</span>
+  {#if leader}
+    <span class="text-xs font-mono tabular-nums text-[var(--azulejo)]">
+      {leader.name ?? 'Leader'} {formatPoints(leaderRunning)}
     </span>
   {/if}
 </div>
 
-{#if challenger}
-  <div class="absolute top-16 left-4 z-[1000] bg-orange-950/90 border border-orange-800 rounded px-3 py-1 text-xs text-orange-300 shadow">
-    {challenger.name ?? 'A rival'} scored {formatPoints(challenger.total)} — beat them!
+{#if leader}
+  <div class="absolute top-16 left-4 z-[1000] bg-[var(--azulejo-pale)] border border-[var(--azulejo)]/30 rounded-[4px] px-3 py-1 text-xs font-mono tabular-nums text-[var(--ink)] shadow-[var(--shadow)]">
+    {leader.name ?? 'Someone'} leads with {formatPoints(leader.total)} — {field.length} on the board
   </div>
 {/if}
 
-<div class="absolute bottom-1 left-1 z-[1000] text-[10px] text-slate-500 bg-slate-950/70 px-1 rounded">
+<div class="absolute bottom-1 left-1 z-[1000] text-[7.5px] text-[var(--ink-faint)] bg-[var(--panel)]/70 px-1 rounded-[4px]">
   Imagery © <a class="underline" href="https://www.mapillary.com" target="_blank" rel="noreferrer">Mapillary</a>
   · Map © <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>
   © <a class="underline" href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>
 </div>
 ```
 
-- [ ] **Step 2: Write `src/components/GameFooter.svelte`**
+Note the opening banner text matches the shape "Ana leads with 21,340 — 3 on the board" from the brief.
+
+- [ ] **Step 3: Write `src/components/GameFooter.svelte`**
+
+Up to `MAX_FIELD` (8) players can be on the board. Showing all of them beside the player's own round score would overflow a phone footer, so this component shows only the top 3 by total plus a "+N more" count — the player's own score is always shown regardless of their rank.
 
 ```svelte
 <script lang="ts">
   import type { Phase, RoundResult } from '../lib/game.svelte';
+  import type { Player } from '../lib/share';
   import { formatDistance } from '../lib/score';
-  import { formatPoints } from '../lib/share';
+  import { formatPoints, standings } from '../lib/share';
 
-  let { phase, result, canSubmit, isLastRound, challengerRoundScore, onsubmit, onnext }: {
+  const VISIBLE_FIELD = 3;
+
+  let { phase, result, canSubmit, isLastRound, field, roundIndex, onsubmit, onnext }: {
     phase: Phase;
     result: RoundResult | null;
     canSubmit: boolean;
     isLastRound: boolean;
-    challengerRoundScore: number | null;
+    field: Player[];
+    roundIndex: number;
     onsubmit: () => void;
     onnext: () => void;
   } = $props();
+
+  const topField = $derived(standings(field).slice(0, VISIBLE_FIELD));
+  const fieldRemaining = $derived(Math.max(0, field.length - topField.length));
+  const fieldRoundScores = $derived(
+    topField.map(({ player }) => ({ name: player.name, points: player.scores[roundIndex] ?? 0 }))
+  );
 </script>
 
-<footer class="w-full bg-slate-950/95 backdrop-blur border-t border-slate-800 p-4 min-h-[90px] flex flex-col sm:flex-row items-center justify-between gap-4">
+<footer class="w-full bg-[var(--panel)]/95 backdrop-blur border-t border-[var(--rule)] p-4 min-h-[90px] flex flex-col sm:flex-row items-center justify-between gap-4">
   {#if phase === 'playing'}
     <div class="text-center sm:text-left">
-      <p class="text-sm font-semibold text-slate-300">Where in Goa is this?</p>
-      <p class="text-xs text-slate-500 mt-0.5">Look around, then drop a pin on the map.</p>
+      <p class="text-sm font-semibold text-[var(--ink)]">Where in Goa is this?</p>
+      <p class="text-xs text-[var(--ink-faint)] mt-0.5">Look around, then drop a pin on the map.</p>
     </div>
     <button
       disabled={!canSubmit}
       onclick={onsubmit}
-      class="w-full sm:w-auto px-6 py-2.5 bg-amber-500 disabled:bg-slate-800 disabled:text-slate-600 hover:bg-amber-400 text-slate-950 disabled:cursor-not-allowed font-bold uppercase text-xs tracking-wider rounded transition-colors">
+      class="w-full sm:w-auto px-6 py-2.5 bg-[var(--azulejo)] disabled:bg-[var(--rule)] disabled:text-[var(--ink-faint)] hover:opacity-90 text-white disabled:cursor-not-allowed font-bold uppercase text-xs tracking-wider rounded-[5px] transition-opacity">
       Submit guess
     </button>
   {:else if phase === 'scored' && result}
     <div class="flex items-center gap-3 flex-wrap justify-center">
-      <div class="bg-slate-900 border border-slate-800 rounded px-3 py-1.5">
-        <span class="text-[10px] text-slate-500 block uppercase font-bold">Distance</span>
-        <span class="text-sm font-mono font-bold text-orange-400">{formatDistance(result.distanceM)}</span>
+      <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-3 py-1.5">
+        <span class="text-[10px] text-[var(--ink-faint)] block uppercase font-bold">Distance</span>
+        <span class="text-sm font-mono tabular-nums font-bold text-[var(--laterite)]">{formatDistance(result.distanceM)}</span>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded px-3 py-1.5">
-        <span class="text-[10px] text-slate-500 block uppercase font-bold">You</span>
-        <span class="text-sm font-mono font-bold text-emerald-400">+{formatPoints(result.points)}</span>
+      <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-3 py-1.5">
+        <span class="text-[10px] text-[var(--ink-faint)] block uppercase font-bold">You</span>
+        <span class="text-sm font-mono tabular-nums font-bold text-[var(--azulejo)]">+{formatPoints(result.points)}</span>
       </div>
-      {#if challengerRoundScore !== null}
-        <div class="bg-slate-900 border border-slate-800 rounded px-3 py-1.5">
-          <span class="text-[10px] text-slate-500 block uppercase font-bold">Rival</span>
-          <span class="text-sm font-mono font-bold text-orange-400">+{formatPoints(challengerRoundScore)}</span>
+      {#each fieldRoundScores as p}
+        <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-3 py-1.5">
+          <span class="text-[10px] text-[var(--ink-faint)] block uppercase font-bold truncate max-w-[6rem]">{p.name ?? 'Player'}</span>
+          <span class="text-sm font-mono tabular-nums font-bold text-[var(--ink-soft)]">+{formatPoints(p.points)}</span>
         </div>
+      {/each}
+      {#if fieldRemaining > 0}
+        <span class="text-[10px] font-mono tabular-nums text-[var(--ink-faint)]">+{fieldRemaining} more on the board</span>
       {/if}
-      <span class="text-xs text-slate-400">{result.location.name}</span>
+      <span class="text-xs italic text-[var(--ink-soft)]" style="font-family: var(--font-display)">{result.location.name}</span>
     </div>
     <button
       onclick={onnext}
-      class="w-full sm:w-auto px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold uppercase text-xs tracking-wider rounded transition-colors">
+      class="w-full sm:w-auto px-6 py-2.5 bg-[var(--azulejo)] hover:opacity-90 text-white font-bold uppercase text-xs tracking-wider rounded-[5px] transition-opacity">
       {isLastRound ? 'See summary' : 'Next round'}
     </button>
   {/if}
 </footer>
 ```
 
-- [ ] **Step 3: Replace `src/App.svelte` entirely**
+- [ ] **Step 4: Replace `src/App.svelte` entirely**
 
 ```svelte
 <script lang="ts">
@@ -1354,27 +1639,27 @@ git commit -m "feat: Mapillary and Leaflet wrapper components with cleanup and r
   import GameFooter from './components/GameFooter.svelte';
   import { loadPool } from './lib/locations';
   import { dealGame, encodeChallenge, randomSeed, ROUNDS, BACKUPS, type ChallengeCode } from './lib/seed';
-  import { parseGameParams, type Challenger } from './lib/share';
+  import { parseGameParams, type Player } from './lib/share';
   import { createGame } from './lib/game.svelte';
 
   const TOKEN = import.meta.env.VITE_MAPILLARY_TOKEN as string;
   const pool = loadPool();
 
-  // Resolve challenge code (falling back to a fresh seed) and challenger ghost.
+  // Resolve challenge code (falling back to a fresh seed) and the field of
+  // everyone who has already played this link.
   const parsed = parseGameParams(window.location.search);
   let code: ChallengeCode | null = parsed.code;
-  let challenger: Challenger | null = parsed.challenger;
+  let field: Player[] = parsed.field;
   let deal = code ? dealGame(pool, code) : null;
   if (!deal) {
-    challenger = null; // stale/malformed link: play a plain new game instead
+    field = []; // stale/malformed link: play a plain new game instead
     code = { seed: randomSeed(), poolVersion: pool.version };
     deal = dealGame(pool, code);
   }
   if (deal) {
     const url = new URL(window.location.href);
     url.searchParams.set('c', encodeChallenge(code));
-    url.searchParams.delete('r');
-    url.searchParams.delete('n');
+    url.searchParams.delete('p');
     history.replaceState(null, '', url);
   }
 
@@ -1386,31 +1671,35 @@ git commit -m "feat: Mapillary and Leaflet wrapper components with cleanup and r
 </script>
 
 {#if !game}
-  <main class="w-full h-screen flex items-center justify-center bg-slate-950 text-slate-300 p-8 text-center">
+  <main class="w-full h-screen flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
-      <h1 class="text-2xl font-bold text-amber-400 mb-2">Backyard: Goa 🏖️</h1>
-      <p>Not enough locations curated yet. Run <code class="text-emerald-400">npm run curate</code> with at least {ROUNDS + BACKUPS} spots.</p>
+      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Backyard: Goa 🏖️</h1>
+      <p>Not enough locations curated yet. Run <code class="text-[var(--emerald-solid)]">npm run curate</code> with at least {ROUNDS + BACKUPS} spots.</p>
     </div>
   </main>
 {:else if game.phase === 'error'}
-  <main class="w-full h-screen flex items-center justify-center bg-slate-950 text-slate-300 p-8 text-center">
+  <main class="w-full h-screen flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
-      <h1 class="text-2xl font-bold text-amber-400 mb-2">Can't reach street view 😕</h1>
+      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Can't reach street view 😕</h1>
       <p class="mb-4">Check your connection and try again.</p>
-      <button onclick={() => location.reload()} class="px-6 py-2 bg-emerald-500 text-slate-950 font-bold rounded">Retry</button>
+      <button onclick={() => location.reload()} class="px-6 py-2 bg-[var(--azulejo)] text-white font-bold rounded-[5px]">Retry</button>
     </div>
   </main>
 {:else}
-  <main class="w-full h-screen flex flex-col md:flex-row bg-slate-950 text-slate-100 overflow-hidden">
-    <section class="w-full md:w-1/2 h-1/2 md:h-full relative border-b md:border-b-0 md:border-r border-slate-800">
+  <main class="w-full h-screen flex flex-col md:flex-row bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
+    <section
+      class="w-full relative border-b md:border-b-0 md:border-r border-[var(--rule)] overflow-hidden"
+      style="flex: {game.phase === 'scored' ? .85 : 1.25}">
       <PanoViewer
         imageId={game.currentLocation.imageId}
         token={TOKEN}
         onloaderror={() => game.substituteCurrent()}
       />
-      <Hud round={game.roundIndex} totalScore={game.totalScore} {challenger} />
+      <Hud round={game.roundIndex} totalScore={game.totalScore} {field} />
     </section>
-    <section class="w-full md:w-1/2 h-1/2 md:h-full flex flex-col">
+    <section
+      class="w-full flex flex-col"
+      style="flex: {game.phase === 'scored' ? 1.4 : 1}">
       <div class="flex-grow relative">
         <GuessMap
           interactive={game.phase === 'playing'}
@@ -1424,7 +1713,8 @@ git commit -m "feat: Mapillary and Leaflet wrapper components with cleanup and r
         result={lastResult}
         canSubmit={game.guess !== null}
         isLastRound={game.roundIndex === ROUNDS - 1}
-        challengerRoundScore={challenger && lastResult ? challenger.scores[game.roundIndex] : null}
+        {field}
+        roundIndex={game.roundIndex}
         onsubmit={() => game.submit()}
         onnext={() => game.next()}
       />
@@ -1433,11 +1723,11 @@ git commit -m "feat: Mapillary and Leaflet wrapper components with cleanup and r
 {/if}
 ```
 
-Note: the summary phase renders nothing yet — Task 10 adds it. That's expected here.
+Note: the pane-split `flex` values implement the reveal-time ratio from the visual-identity spec (`.85`/`1.4` on reveal vs `1.25`/`1` during play); since `flex` sizes along whichever axis is the flex container's main axis, this ratio holds both stacked on mobile (`flex-col`, the primary target) and side-by-side on `md:flex-row`. The summary phase renders nothing yet — Task 10 adds it. That's expected here.
 
-- [ ] **Step 4: Typecheck and test** — `npx svelte-check --tsconfig ./tsconfig.json` → 0 errors; `npm test` → PASS.
+- [ ] **Step 5: Typecheck and test** — `npx svelte-check --tsconfig ./tsconfig.json` → 0 errors; `npm test` → PASS.
 
-- [ ] **Step 5: Curate real locations (MANUAL — needs Kapil or a browser)**
+- [ ] **Step 6: Curate real locations (MANUAL — needs Kapil or a browser)**
 
 Get a free token at mapillary.com/dashboard/developers into `.env`. In the Mapillary web app, zoom to Goa, click green sequence lines, copy `pKey` values from the URL into `scripts/spots.txt` (aim for 7+ now, 15–20 before sharing widely). Run `npm run curate` — expect `OK` lines and a written `src/data/locations.json`. Commit:
 
@@ -1448,13 +1738,13 @@ git commit -m "data: first curated location pool"
 
 If executing agentically without a browser: skip curation, note it as a blocker for the smoke test, and continue — everything else proceeds.
 
-- [ ] **Step 6: Manual smoke test** — `npm run dev`, open http://localhost:5173: panorama loads and pans (no navigation arrows), pin drops, Submit reveals dashed line + both pins + distance + points, Next advances, URL shows `?c=…`, reloading the same URL deals the same locations.
+- [ ] **Step 7: Manual smoke test** — `npm run dev`, open http://localhost:5173: panorama loads and pans (no navigation arrows), pin drops, Submit reveals dashed line + both pins + distance + points, the panorama/map ratio visibly shifts toward the map on reveal, Next advances, URL shows `?c=…`, reloading the same URL deals the same locations.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/App.svelte src/components/Hud.svelte src/components/GameFooter.svelte
-git commit -m "feat: playable 5-round game with challenge URLs and head-to-head HUD"
+git add src/App.svelte src/app.css src/components/Hud.svelte src/components/GameFooter.svelte
+git commit -m "feat: playable 5-round game with challenge URLs, field HUD, and locked visual identity"
 ```
 
 ---
@@ -1466,54 +1756,105 @@ git commit -m "feat: playable 5-round game with challenge URLs and head-to-head 
 - Modify: `src/App.svelte` (render Summary in the summary phase)
 
 **Interfaces:**
-- Consumes: `RoundResult` from `game.svelte.ts`; `rankForScore`, `emojiBar`, `buildShareText`, `buildShareUrl`, `formatPoints`, `Challenger` from `share.ts`; `formatDistance`, `emojiForDistance`, `MAX_GAME_POINTS` from `score.ts`; `ChallengeCode` from `seed.ts`.
-- Produces: `renderShareCard(opts: { total: number; rank: string; bar: string; rounds: Array<{ name: string; distanceM: number; points: number }> }): Promise<Blob>` · `Summary` props `{ results: RoundResult[]; totalScore: number; code: ChallengeCode; challenger: Challenger | null }`.
+- Consumes: `RoundResult` from `game.svelte.ts`; `Player`, `makePlayer`, `addToField`, `standings`, `ordinal`, `rankForScore`, `emojiBar`, `buildShareText`, `buildShareUrl`, `formatPoints` from `share.ts`; `formatDistance`, `emojiForDistance`, `MAX_GAME_POINTS` from `score.ts`; `ChallengeCode` from `seed.ts`.
+- Produces: `renderShareCard(opts: { total: number; rank: string; bar: string; rounds: Array<{ name: string; distanceM: number; points: number }>; standings: Array<{ position: number; name: string | null; total: number; isMe: boolean }> }): Promise<Blob>` · `Summary` props `{ results: RoundResult[]; totalScore: number; code: ChallengeCode; field: Player[] }`.
 
 - [ ] **Step 1: Write `src/lib/card.ts`**
+
+The share card is a static PNG that gets posted into chats on whatever device and theme the *recipient* has, not the sharer's — so it renders as a fixed dark card using the dark-theme hex values from `docs/superpowers/specs/visual-identity.md`, rather than reading the page's live CSS custom properties (a canvas `fillStyle` can't consume `var()` without a `getComputedStyle` round-trip, and a card that silently followed the sharer's OS theme would be inconsistent from share to share). The canvas height is computed from the standings/round counts instead of fixed, since a full 8-player board plus 5 rounds would overflow a fixed 1080px card.
 
 ```ts
 import { formatDistance, MAX_GAME_POINTS } from './score';
 import { formatPoints } from './share';
+
+const CARD_BG = '#0A141D';
+const CARD_INK = '#E6EDF5';
+const CARD_INK_SOFT = '#9BB0C4';
+const CARD_INK_FAINT = '#63798E';
+const CARD_AZULEJO = '#79A5E8';
+const CARD_AZULEJO_HIGHLIGHT = 'rgba(121, 165, 232, 0.14)';
+const CARD_LATERITE = '#E8674A';
+const DISPLAY_FONT = '"Palatino Linotype", "Book Antiqua", Palatino, "Iowan Old Style", Georgia, serif';
+const MONO_FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+const MARGIN = 80;
+const HEADER_H = 560;
+const STANDINGS_ROW_H = 52;
+const ROUND_ROW_H = 46;
+const FOOTER_H = 90;
 
 export async function renderShareCard(opts: {
   total: number;
   rank: string;
   bar: string;
   rounds: Array<{ name: string; distanceM: number; points: number }>;
+  standings: Array<{ position: number; name: string | null; total: number; isMe: boolean }>;
 }): Promise<Blob> {
+  const standingsH = opts.standings.length * STANDINGS_ROW_H + 60;
+  const roundsH = opts.rounds.length * ROUND_ROW_H + 60;
+
   const c = document.createElement('canvas');
   c.width = 1080;
-  c.height = 1080;
+  c.height = HEADER_H + standingsH + roundsH + FOOTER_H;
   const ctx = c.getContext('2d')!;
 
-  ctx.fillStyle = '#020617';
-  ctx.fillRect(0, 0, 1080, 1080);
+  ctx.fillStyle = CARD_BG;
+  ctx.fillRect(0, 0, c.width, c.height);
 
-  ctx.fillStyle = '#f59e0b';
-  ctx.font = 'bold 64px system-ui, sans-serif';
-  ctx.fillText('Backyard: Goa 🏖️', 80, 150);
+  ctx.fillStyle = CARD_AZULEJO;
+  ctx.font = `bold 56px ${MONO_FONT}`;
+  ctx.fillText('BACKYARD: GOA', MARGIN, 130);
 
-  ctx.fillStyle = '#34d399';
-  ctx.font = '900 170px system-ui, sans-serif';
-  ctx.fillText(formatPoints(opts.total), 80, 360);
-  ctx.fillStyle = '#64748b';
-  ctx.font = 'bold 40px system-ui, sans-serif';
-  ctx.fillText(`/ ${formatPoints(MAX_GAME_POINTS)} — ${opts.rank}`, 80, 430);
+  ctx.fillStyle = CARD_INK;
+  ctx.font = `italic 44px ${DISPLAY_FONT}`;
+  ctx.fillText(opts.rank, MARGIN, 190);
 
-  ctx.font = '72px system-ui, sans-serif';
-  ctx.fillText(opts.bar, 80, 550);
+  ctx.fillStyle = CARD_INK;
+  ctx.font = `900 150px ${MONO_FONT}`;
+  ctx.fillText(formatPoints(opts.total), MARGIN, 360);
+  ctx.fillStyle = CARD_INK_FAINT;
+  ctx.font = `bold 36px ${MONO_FONT}`;
+  ctx.fillText(`/ ${formatPoints(MAX_GAME_POINTS)}`, MARGIN, 410);
 
-  ctx.font = '34px system-ui, sans-serif';
-  opts.rounds.forEach((r, i) => {
-    ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(`${i + 1}.  ${r.name}`, 80, 650 + i * 60);
-    ctx.fillStyle = '#f97316';
-    ctx.fillText(`${formatDistance(r.distanceM)} · +${formatPoints(r.points)}`, 620, 650 + i * 60);
-  });
+  ctx.font = '64px system-ui, sans-serif';
+  ctx.fillText(opts.bar, MARGIN, 500);
 
-  ctx.fillStyle = '#475569';
-  ctx.font = '30px system-ui, sans-serif';
-  ctx.fillText('Think you know Goa better? Play the link!', 80, 1010);
+  ctx.fillStyle = CARD_INK_FAINT;
+  ctx.font = `bold 28px ${MONO_FONT}`;
+  ctx.fillText('STANDINGS', MARGIN, 580);
+
+  let y = HEADER_H + 30;
+  for (const s of opts.standings) {
+    if (s.isMe) {
+      ctx.fillStyle = CARD_AZULEJO_HIGHLIGHT;
+      ctx.fillRect(MARGIN - 20, y - 34, 1080 - 2 * MARGIN + 40, 46);
+    }
+    ctx.fillStyle = s.position === 1 ? CARD_AZULEJO : CARD_INK_SOFT;
+    ctx.font = `bold 30px ${MONO_FONT}`;
+    ctx.fillText(`${s.position}${s.position === 1 ? ' 🏆' : ''}  ${s.name ?? 'Player'}`, MARGIN, y);
+    ctx.textAlign = 'right';
+    ctx.fillText(formatPoints(s.total), 1080 - MARGIN, y);
+    ctx.textAlign = 'left';
+    y += STANDINGS_ROW_H;
+  }
+
+  y += 30;
+  ctx.fillStyle = CARD_INK_FAINT;
+  ctx.font = `bold 28px ${MONO_FONT}`;
+  ctx.fillText('THIS RUN', MARGIN, y);
+  y += 44;
+  ctx.font = `26px ${MONO_FONT}`;
+  for (const r of opts.rounds) {
+    ctx.fillStyle = CARD_INK_SOFT;
+    ctx.fillText(r.name, MARGIN, y);
+    ctx.fillStyle = CARD_LATERITE;
+    ctx.fillText(`${formatDistance(r.distanceM)} · +${formatPoints(r.points)}`, 620, y);
+    y += ROUND_ROW_H;
+  }
+
+  ctx.fillStyle = CARD_INK_FAINT;
+  ctx.font = `26px ${MONO_FONT}`;
+  ctx.fillText('Add your score — play the link!', MARGIN, c.height - 40);
 
   return new Promise((resolve) => c.toBlob((b) => resolve(b!), 'image/png'));
 }
@@ -1525,39 +1866,57 @@ export async function renderShareCard(opts: {
 <script lang="ts">
   import type { RoundResult } from '../lib/game.svelte';
   import type { ChallengeCode } from '../lib/seed';
-  import { buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints, type Challenger } from '../lib/share';
+  import {
+    buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints,
+    makePlayer, addToField, standings, type Player,
+  } from '../lib/share';
   import { formatDistance, emojiForDistance, MAX_GAME_POINTS } from '../lib/score';
   import { renderShareCard } from '../lib/card';
 
-  let { results, totalScore, code, challenger }: {
+  let { results, totalScore, code, field }: {
     results: RoundResult[];
     totalScore: number;
     code: ChallengeCode;
-    challenger: Challenger | null;
+    field: Player[];
   } = $props();
 
   const rank = $derived(rankForScore(totalScore));
   const bar = $derived(emojiBar(results.map((r) => r.distanceM)));
-  const outcome = $derived(
-    challenger ? (totalScore > challenger.total ? 'win' : totalScore < challenger.total ? 'lose' : 'tie') : null
-  );
+  const alone = $derived(field.length === 0);
+
+  // The pre-existing leader of the incoming field (before this run is added)
+  // — the same notion the HUD compared against during play. Kept distinct
+  // from the 🏆 in the standings table below, which marks position 1 of the
+  // *final* board and may end up being the player themselves.
+  const leader = $derived(field.length > 0 ? standings(field)[0].player : null);
 
   let playerName = $state(localStorage.getItem('backyard-name') ?? '');
   let copied = $state(false);
 
+  const me = $derived(makePlayer(playerName || null, results.map((r) => r.points)));
+  // The board as it will look once this run is added — shown immediately so
+  // the player sees themselves in the standings before they even share.
+  const board = $derived(standings(addToField(field, me)));
+
   async function share() {
     localStorage.setItem('backyard-name', playerName);
-    const url = buildShareUrl(
-      window.location.origin + window.location.pathname,
-      code,
-      results.map((r) => r.points),
-      playerName || null
-    );
-    const text = buildShareText({ rank, bar, total: totalScore, url });
+    const finalField = addToField(field, me);
+    const finalBoard = standings(finalField);
+    const myPosition = finalBoard.find((b) => b.player === me)?.position ?? finalBoard.length;
+
+    const url = buildShareUrl(window.location.origin + window.location.pathname, code, finalField);
+    const text = buildShareText({
+      rank, bar, total: totalScore, url,
+      position: myPosition, fieldSize: finalField.length,
+    });
+
     try {
       const blob = await renderShareCard({
         total: totalScore, rank, bar,
         rounds: results.map((r) => ({ name: r.location.name, distanceM: r.distanceM, points: r.points })),
+        standings: finalBoard.map((s) => ({
+          position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,
+        })),
       });
       const file = new File([blob], 'backyard-goa.png', { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
@@ -1575,48 +1934,65 @@ export async function renderShareCard(opts: {
   }
 </script>
 
-<main class="w-full h-screen overflow-y-auto bg-slate-950 text-slate-100 flex flex-col items-center p-6 gap-5">
-  <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 mt-4">
-    CHALLENGE COMPLETE
+<main class="w-full h-screen overflow-y-auto bg-[var(--porcelain)] text-[var(--ink)] flex flex-col items-center p-6 gap-5">
+  <h1 class="text-3xl font-black text-[var(--azulejo)] mt-4" style="font-family: var(--font-display)">
+    Challenge Complete
   </h1>
 
-  <div class="bg-slate-900 border border-slate-800 rounded-xl px-10 py-5 text-center">
-    <div class="text-5xl font-black text-emerald-400">{formatPoints(totalScore)}</div>
-    <div class="text-xs text-slate-500 uppercase tracking-widest mt-1">/ {formatPoints(MAX_GAME_POINTS)}</div>
-    <div class="text-amber-400 font-bold mt-2">{rank}</div>
+  <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[22px] px-10 py-5 text-center shadow-[var(--shadow)]">
+    <div class="text-5xl font-black font-mono tabular-nums text-[var(--azulejo)]">{formatPoints(totalScore)}</div>
+    <div class="text-xs text-[var(--ink-faint)] uppercase tracking-widest mt-1 font-mono tabular-nums">/ {formatPoints(MAX_GAME_POINTS)}</div>
+    <div class="text-[var(--ink)] font-bold mt-2 italic" style="font-family: var(--font-display)">{rank}</div>
     <div class="text-2xl mt-2">{bar}</div>
   </div>
 
-  {#if challenger}
-    <div class="bg-slate-900 border border-slate-800 rounded-xl px-8 py-4 text-center w-full max-w-md">
-      <div class="text-lg font-bold">
-        {#if outcome === 'win'}🏆 You beat {challenger.name ?? 'your rival'}!{:else if outcome === 'lose'}😤 {challenger.name ?? 'Your rival'} wins!{:else}🤝 It's a tie!{/if}
+  <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[22px] px-8 py-4 w-full max-w-md shadow-[var(--shadow)]">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-[var(--ink-faint)] mb-3">
+      Standings{#if !alone} — {board.length} on the board{/if}
+    </h2>
+    <div class="flex flex-col gap-1">
+      {#each board as { position, player }}
+        <div class="flex items-center justify-between px-3 py-1.5 rounded-[4px] text-sm font-mono tabular-nums {player === me ? 'bg-[var(--azulejo-pale)] font-bold' : ''}">
+          <span class="flex items-center gap-2">
+            <span class="text-[var(--ink-faint)] w-5">{position}</span>
+            <span class="truncate max-w-[9rem]">{player.name ?? (player === me ? 'You' : 'Player')}</span>
+            {#if position === 1}<span>🏆</span>{/if}
+          </span>
+          <span class="text-[var(--ink)]">{formatPoints(player.total)}</span>
+        </div>
+      {/each}
+    </div>
+  </div>
+
+  {#if leader}
+    <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[22px] px-8 py-4 text-center w-full max-w-md shadow-[var(--shadow)]">
+      <div class="text-sm font-bold text-[var(--ink-soft)] uppercase tracking-wide mb-2">
+        You vs {leader.name ?? 'the leader'}
       </div>
-      <div class="text-sm font-mono text-slate-400 mt-2">
-        You {formatPoints(totalScore)} · {challenger.name ?? 'Rival'} {formatPoints(challenger.total)}
-      </div>
-      <div class="mt-3 flex flex-col gap-1">
+      <div class="flex flex-col gap-1">
         {#each results as r, i}
-          <div class="flex items-center gap-2 text-xs font-mono">
-            <span class="w-4 text-slate-500">{i + 1}</span>
-            <div class="flex-1 bg-slate-800 rounded h-2 overflow-hidden">
-              <div class="bg-emerald-500 h-full" style="width:{(r.points / 5000) * 100}%"></div>
+          <div class="flex items-center gap-2 text-xs font-mono tabular-nums">
+            <span class="w-4 text-[var(--ink-faint)]">{i + 1}</span>
+            <div class="flex-1 bg-[var(--rule)] rounded-[4px] h-2 overflow-hidden">
+              <div class="bg-[var(--azulejo)] h-full" style="width:{(r.points / 5000) * 100}%"></div>
             </div>
-            <div class="flex-1 bg-slate-800 rounded h-2 overflow-hidden">
-              <div class="bg-orange-500 h-full" style="width:{(challenger.scores[i] / 5000) * 100}%"></div>
+            <div class="flex-1 bg-[var(--rule)] rounded-[4px] h-2 overflow-hidden">
+              <div class="bg-[var(--laterite)] h-full" style="width:{((leader.scores[i] ?? 0) / 5000) * 100}%"></div>
             </div>
           </div>
         {/each}
-        <div class="flex justify-between text-[10px] text-slate-500 uppercase"><span>You</span><span>{challenger.name ?? 'Rival'}</span></div>
+        <div class="flex justify-between text-[10px] text-[var(--ink-faint)] uppercase mt-1">
+          <span>You</span><span>{leader.name ?? 'Leader'}</span>
+        </div>
       </div>
     </div>
   {/if}
 
   <div class="w-full max-w-md flex flex-col gap-1.5">
     {#each results as r}
-      <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded px-4 py-2 text-sm">
-        <span>{emojiForDistance(r.distanceM)} {r.location.name}</span>
-        <span class="font-mono text-slate-400">{formatDistance(r.distanceM)} · <span class="text-emerald-400">+{formatPoints(r.points)}</span></span>
+      <div class="flex items-center justify-between bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2 text-sm">
+        <span>{emojiForDistance(r.distanceM)} <span class="italic" style="font-family: var(--font-display)">{r.location.name}</span></span>
+        <span class="font-mono tabular-nums text-[var(--ink-soft)]">{formatDistance(r.distanceM)} · <span class="text-[var(--azulejo)]">+{formatPoints(r.points)}</span></span>
       </div>
     {/each}
   </div>
@@ -1625,14 +2001,14 @@ export async function renderShareCard(opts: {
     <input
       bind:value={playerName}
       maxlength="20"
-      placeholder="Your name (for the challenge)"
-      class="bg-slate-900 border border-slate-700 rounded px-4 py-2.5 text-sm w-56 placeholder:text-slate-600"
+      placeholder="Your name (for the board)"
+      class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2.5 text-sm w-56 placeholder:text-[var(--ink-faint)] text-[var(--ink)]"
     />
     <button onclick={share}
-      class="px-8 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 font-bold uppercase text-sm rounded-lg text-slate-950">
-      {copied ? 'Copied!' : 'Challenge friends'}
+      class="px-8 py-2.5 bg-[var(--azulejo)] hover:opacity-90 font-bold uppercase text-sm rounded-[5px] text-white">
+      {copied ? 'Copied!' : alone ? 'Share your score' : 'Add your score to the board'}
     </button>
-    <button onclick={playAgain} class="px-6 py-2.5 border border-slate-700 hover:border-slate-500 font-bold uppercase text-sm rounded-lg text-slate-300">
+    <button onclick={playAgain} class="px-6 py-2.5 border border-[var(--rule)] hover:border-[var(--ink-faint)] font-bold uppercase text-sm rounded-[5px] text-[var(--ink-soft)]">
       Play again
     </button>
   </div>
@@ -1647,7 +2023,7 @@ export async function renderShareCard(opts: {
 {:else if game.phase === 'error'}
   <!-- (unchanged: error screen) -->
 {:else if game.phase === 'summary'}
-  <Summary results={game.results} totalScore={game.totalScore} code={code!} {challenger} />
+  <Summary results={game.results} totalScore={game.totalScore} code={code!} {field} />
 {:else}
   <!-- (unchanged: game layout) -->
 {/if}
@@ -1657,13 +2033,13 @@ export async function renderShareCard(opts: {
 
 - [ ] **Step 4: Typecheck and test** — `npx svelte-check --tsconfig ./tsconfig.json` → 0 errors; `npm test` → PASS.
 
-- [ ] **Step 5: Manual smoke test** — play 5 rounds: summary shows rank, emoji bar, per-round distances; "Challenge friends" copies text (desktop) — paste it, open the URL in a new tab: rival totals in HUD, rival round scores in footer, winner section in summary all appear; same locations dealt.
+- [ ] **Step 5: Manual smoke test** — play 5 rounds on a bare link: summary shows rank, emoji bar, a one-row standings table (you, 🏆), per-round distances; button reads "Share your score"; "Share your score" copies text (desktop). Paste the copied URL into a new tab and play again with a different name: HUD opening banner names the first player as leader, footer shows their round score beside yours, summary standings show both rows sorted by total with 🏆 on the leader, button now reads "Add your score to the board". Repeat with more names (past `MAX_FIELD` if practical) to confirm the lowest scorer drops off the board.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/lib/card.ts src/components/Summary.svelte src/App.svelte
-git commit -m "feat: summary with head-to-head comparison, canvas share card, share flow"
+git commit -m "feat: standings summary, canvas share card, and field-aware share flow"
 ```
 
 ---
