@@ -107,15 +107,22 @@
     }
 
     try {
+      // Per-cell failures are tolerated (Mapillary 500s transiently); only a
+      // fully failed viewport is an error.
+      let failed = 0;
       const results = await Promise.all(
         cells.map(async (bbox) => {
           const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,computed_geometry&is_pano=true&bbox=${bbox}&limit=100`;
           const res = await fetch(url, { signal: controller.signal });
-          if (!res.ok) throw new Error(`Mapillary ${res.status}`);
+          if (!res.ok) {
+            failed++;
+            return [];
+          }
           const json = (await res.json()) as { data?: Array<{ id: string; computed_geometry?: { coordinates: [number, number] } }> };
           return json.data ?? [];
         })
       );
+      if (failed === cells.length) throw new Error('all cells failed');
       const seen = new Set<string>();
       const next: CuratorDot[] = [];
       for (const d of results.flat()) {
