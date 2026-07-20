@@ -8,6 +8,22 @@ export interface MapillaryImage {
   computed_geometry: { coordinates: [number, number] }; // GeoJSON: [lng, lat]
 }
 
+/**
+ * A spots.txt line is either a bare Mapillary image ID, or a full Mapillary URL
+ * containing a `pKey=<id>` query param (e.g. copied straight from the app's address
+ * bar). Either form may carry an optional trailing `# name` comment. Returns null for
+ * a URL that has no pKey param — the caller treats that like any other unparseable
+ * line and drops it, the same way blank lines and full-comment lines are dropped.
+ */
+function extractImageId(raw: string): string | null {
+  if (!/^https?:\/\//i.test(raw)) return raw;
+  try {
+    return new URL(raw).searchParams.get('pKey');
+  } catch {
+    return null;
+  }
+}
+
 export function parseSpots(text: string): Array<{ imageId: string; name: string | null }> {
   return text
     .split('\n')
@@ -15,8 +31,11 @@ export function parseSpots(text: string): Array<{ imageId: string; name: string 
     .filter((line) => line && !line.startsWith('#'))
     .map((line) => {
       const [idPart, ...nameParts] = line.split('#');
-      return { imageId: idPart.trim(), name: nameParts.join('#').trim() || null };
-    });
+      const imageId = extractImageId(idPart.trim());
+      const name = nameParts.join('#').trim() || null;
+      return imageId ? { imageId, name } : null;
+    })
+    .filter((entry): entry is { imageId: string; name: string | null } => entry !== null);
 }
 
 export function validateImage(img: MapillaryImage, existingIds: Set<string>): string | null {

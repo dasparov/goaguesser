@@ -21,6 +21,24 @@ describe('parseSpots', () => {
       { imageId: '345678', name: 'Baga bend' },
     ]);
   });
+
+  it('extracts the image id from a full Mapillary URL containing pKey', () => {
+    const text = 'https://www.mapillary.com/app/?pKey=1234567890&focus=photo&lat=15.49&lng=73.83';
+    expect(parseSpots(text)).toEqual([{ imageId: '1234567890', name: null }]);
+  });
+
+  it('extracts the image id from a full Mapillary URL and keeps the trailing name', () => {
+    const text = 'https://www.mapillary.com/app/?pKey=1234567890&focus=photo&lat=15.49&lng=73.83 # Baga bend';
+    expect(parseSpots(text)).toEqual([{ imageId: '1234567890', name: 'Baga bend' }]);
+  });
+
+  it('skips a malformed Mapillary URL that has no pKey param', () => {
+    const text = 'bare-id-kept\nhttps://www.mapillary.com/app/?focus=photo&lat=15.49&lng=73.83\nanother-id-kept';
+    expect(parseSpots(text)).toEqual([
+      { imageId: 'bare-id-kept', name: null },
+      { imageId: 'another-id-kept', name: null },
+    ]);
+  });
 });
 
 describe('validateImage', () => {
