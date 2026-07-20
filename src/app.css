@@ -2,6 +2,18 @@
 @import 'leaflet/dist/leaflet.css';
 @import 'mapillary-js/dist/mapillary.css';
 
+@theme {
+  /* Font tokens — docs/superpowers/specs/visual-identity.md.
+     Declared in @theme (not plain :root) so Tailwind v4's compiler
+     registers them as theme values: the `font-mono` utility (used
+     throughout for scores/distances/round counters) resolves to this
+     exact stack instead of Tailwind's built-in default, and the
+     display/UI faces are theme-registered the same way. */
+  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Iowan Old Style', Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
 :root {
   /* Light theme (default) — docs/superpowers/specs/visual-identity.md */
   --porcelain: #F6F8FB;
@@ -16,10 +28,6 @@
   --emerald-solid: #167851;
   --amber: #C8801A;
   --shadow: 0 1px 2px rgba(14, 31, 46, .06), 0 8px 24px -12px rgba(14, 31, 46, .18);
-
-  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Iowan Old Style', Georgia, serif;
-  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
