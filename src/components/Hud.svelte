@@ -17,15 +17,16 @@
   );
 </script>
 
-<div class="absolute top-4 left-4 z-[1000] bg-[var(--panel)]/95 backdrop-blur border border-[var(--rule)] rounded-[5px] px-4 py-2 flex items-center gap-4 shadow-[var(--shadow)]">
+<div class="absolute top-4 left-4 z-[1000] max-w-[calc(100vw-2rem)] bg-[var(--panel)]/95 backdrop-blur border border-[var(--rule)] rounded-[5px] px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1 shadow-[var(--shadow)]">
   <h1 class="text-sm font-bold uppercase tracking-wide text-[var(--azulejo)]" style="font-family: var(--font-display)">Backyard: Goa</h1>
   <div class="h-4 w-px bg-[var(--rule)]"></div>
   <span class="text-xs font-mono tabular-nums text-[var(--ink-faint)]">Round {round + 1}/5</span>
   <div class="h-4 w-px bg-[var(--rule)]"></div>
   <span class="text-xs font-mono tabular-nums text-[var(--ink)]">You {formatPoints(totalScore)}</span>
   {#if leader}
-    <span class="text-xs font-mono tabular-nums text-[var(--azulejo)]">
-      {leader.name ?? 'Leader'} {formatPoints(leaderRunning)}
+    <span class="text-xs font-mono tabular-nums text-[var(--azulejo)] flex items-center gap-1 min-w-0">
+      <span class="truncate max-w-[6rem]">{leader.name ?? 'Leader'}</span>
+      <span class="shrink-0">{formatPoints(leaderRunning)}</span>
     </span>
   {/if}
 </div>
