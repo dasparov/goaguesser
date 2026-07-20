@@ -14,7 +14,12 @@ const DISPLAY_FONT = '"Palatino Linotype", "Book Antiqua", Palatino, "Iowan Old 
 const MONO_FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 const W = 1080;
-const BASE_H = 1080;
+// Extra vertical room reserved for the caption line under the target chart
+// ("5 rounds · ✕ plotted by distance from the answer") — added to the base
+// height and to every Y offset below it, so the rank/score/standings block
+// keeps its original spacing instead of crowding upward into the caption.
+const CAPTION_GAP = 36;
+const BASE_H = 1080 + CAPTION_GAP;
 const MARGIN = 80;
 const STANDINGS_ROW_H = 56;
 const STANDINGS_VISIBLE = 3;
@@ -204,8 +209,13 @@ export async function renderShareCard(opts: {
     ctx.stroke();
   }
 
+  // Caption: directly under the rings, well clear of the rank block below.
+  ctx.fillStyle = CARD_INK_FAINT;
+  ctx.font = `15px ${MONO_FONT}`;
+  ctx.fillText('5 rounds · ✕ plotted by distance from the answer', MARGIN, cy + R + 40);
+
   // Rank / score / accuracy.
-  let y = 700;
+  let y = 700 + CAPTION_GAP;
   ctx.fillStyle = CARD_INK;
   ctx.font = `italic 56px ${DISPLAY_FONT}`;
   ctx.fillText(opts.rank, MARGIN, y);
