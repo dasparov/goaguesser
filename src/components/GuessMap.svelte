@@ -29,9 +29,9 @@
   const pinIcon = (bg: string) =>
     L.divIcon({
       className: '',
-      html: `<div style="width:16px;height:16px;border-radius:9999px;background:${bg};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
+      html: `<div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.5)"><div style="width:16px;height:16px;border-radius:50% 50% 50% 0;background:${bg};border:1.5px solid white;transform:rotate(-45deg)"></div></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 23],
     });
 
   onMount(() => {
