@@ -1,0 +1,137 @@
+@import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
+@import 'mapillary-js/dist/mapillary.css';
+
+@theme {
+  /* Font tokens — docs/superpowers/specs/visual-identity.md.
+     Declared in @theme (not plain :root) so Tailwind v4's compiler
+     registers them as theme values: the `font-mono` utility (used
+     throughout for scores/distances/round counters) resolves to this
+     exact stack instead of Tailwind's built-in default, and the
+     display/UI faces are theme-registered the same way. */
+  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Iowan Old Style', Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+:root {
+  /* Dark theme (default) — docs/superpowers/specs/visual-identity.md (v2.1, "Dark by
+     default"). Warm terracotta-dark ground, never pure black. */
+  color-scheme: dark light;
+  --porcelain: #1B120A;
+  --panel: #261A0E;
+  --ink: #F3EADA;
+  --ink-soft: #C4B49D;
+  --ink-faint: #8A7A63;
+  --rule: #3B2C1C;
+  --azulejo: #86AEE3;
+  --azulejo-pale: #22314E;
+  --laterite: #E06A44;
+  --emerald-solid: #46B584;
+  --amber: #E0A340;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --porcelain: #F5EDDF;
+    --panel: #FDF9F0;
+    --ink: #2B1F16;
+    --ink-soft: #6B5847;
+    --ink-faint: #A08D77;
+    --rule: #E6D9C4;
+    --azulejo: #1F4E8C;
+    --azulejo-pale: #E8EDF5;
+    --laterite: #B84A2B;
+    --emerald-solid: #1B7A4E;
+    --amber: #C8801A;
+  }
+}
+
+/* Explicit theme override (e.g. a future in-app toggle) wins over the OS preference either way. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --porcelain: #1B120A;
+  --panel: #261A0E;
+  --ink: #F3EADA;
+  --ink-soft: #C4B49D;
+  --ink-faint: #8A7A63;
+  --rule: #3B2C1C;
+  --azulejo: #86AEE3;
+  --azulejo-pale: #22314E;
+  --laterite: #E06A44;
+  --emerald-solid: #46B584;
+  --amber: #E0A340;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --porcelain: #F5EDDF;
+  --panel: #FDF9F0;
+  --ink: #2B1F16;
+  --ink-soft: #6B5847;
+  --ink-faint: #A08D77;
+  --rule: #E6D9C4;
+  --azulejo: #1F4E8C;
+  --azulejo-pale: #E8EDF5;
+  --laterite: #B84A2B;
+  --emerald-solid: #1B7A4E;
+  --amber: #C8801A;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--porcelain);
+  color: var(--ink);
+}
+
+/* Slickness rules (v2 — FLAT): docs/superpowers/specs/visual-identity.md.
+   Pills, solid fills, no gradients, no shadows — separation comes from the
+   sand/shell two-tone and 1px hairlines instead. */
+.btn-primary {
+  border-radius: 999px;
+  background-color: var(--azulejo);
+  color: #fff;
+  transition: transform .06s ease, background-color .12s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--azulejo) 94%, black);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn-primary:disabled {
+  background-color: var(--rule);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  border-radius: 999px;
+  background-color: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  transition: transform .06s ease, background-color .12s ease, border-color .12s ease;
+}
+.btn-secondary:hover {
+  border-color: var(--ink-faint);
+}
+.btn-secondary:active {
+  transform: translateY(1px);
+}
+
+.card-flat {
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+/* Reveal stat chips: slide up + fade, staggered via inline animation-delay. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes stat-chip-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .stat-chip-in {
+    animation: stat-chip-in .18s ease both;
+  }
+}
