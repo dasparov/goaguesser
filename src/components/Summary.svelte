@@ -5,7 +5,6 @@
     buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints,
     makePlayer, addToField, standings, type Player,
   } from '../lib/share';
-  import { shortenUrl } from '../lib/shorten';
   import { formatDistance, MAX_GAME_POINTS, missForPoints } from '../lib/score';
   import { renderShareCard } from '../lib/card';
   import Trophy from './Trophy.svelte';
@@ -76,8 +75,7 @@
       const finalBoard = standings(finalField);
       const myPosition = finalBoard.find((b) => b.player === me)?.position ?? finalBoard.length;
 
-      const longUrl = buildShareUrl(window.location.origin + window.location.pathname, code, finalField);
-      const url = await shortenUrl(longUrl);
+      const url = buildShareUrl(window.location.origin + window.location.pathname, code, finalField);
       const text = buildShareText({
         rank, bar, total: totalScore, url,
         position: myPosition, fieldSize: finalField.length,
