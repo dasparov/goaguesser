@@ -1,0 +1,38 @@
+name: Import spots from inbox
+on:
+  push:
+    branches: [main]
+    paths: ['spots-inbox/**.json']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Import every inbox file through the validating curate script
+        env:
+          VITE_MAPILLARY_TOKEN: ${{ secrets.VITE_MAPILLARY_TOKEN }}
+        run: |
+          shopt -s nullglob
+          for f in spots-inbox/*.json; do
+            echo "== importing $f =="
+            npm run curate -- --import "$f"
+            rm "$f"
+          done
+      - name: Commit pool update and clear inbox
+        run: |
+          git config user.name "goaguesser-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/data/locations.json spots-inbox
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "spots: import from inbox"
+          git push
+      - name: Trigger deploy (bot pushes don't auto-trigger workflows)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main || true
