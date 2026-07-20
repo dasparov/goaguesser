@@ -68,3 +68,11 @@ variables → Actions → add `VITE_MAPILLARY_TOKEN`.
 
 - Spec: `docs/superpowers/specs/2026-07-19-backyard-goa-design.md`
 - Plan: `docs/superpowers/plans/2026-07-19-backyard-goa.md`
+
+## Adding spots without a terminal
+
+1. Open [the curator](https://dasparov.github.io/goaguesser/curate.html), tap a hotspot, keep the panoramas you like, then **Export** — it downloads `goaguesser-spots.json`.
+2. On [github.com/dasparov/goaguesser](https://github.com/dasparov/goaguesser), open the `spots-inbox/` folder → **Add file → Upload files** → drop the JSON in → commit.
+3. Done. An Action validates every spot against the Mapillary API (panorama, inside Goa, not already pooled), appends the good ones, clears the inbox, and redeploys — live in ~3 minutes. Existing challenge links are never affected: the pool is append-only and versioned.
+
+Anyone can curate and export; only someone with commit access can feed the inbox.
