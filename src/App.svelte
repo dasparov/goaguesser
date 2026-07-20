@@ -13,21 +13,21 @@
   const pool = loadPool();
 
   // Resolve challenge code (falling back to a fresh seed) and the field of
-  // everyone who has already played this link.
+  // everyone who has already played this link. `code` is resolved once,
+  // synchronously, before first render — a plain `const` (rather than
+  // `$state`) so it never needs to trigger a reactive update; the reactive
+  // pieces of this setup (`field`) are declared with `$state` explicitly.
   const parsed = parseGameParams(window.location.search);
-  let code: ChallengeCode | null = parsed.code;
   let field: Player[] = $state(parsed.field);
-  let deal = code ? dealGame(pool, code) : null;
+  let deal = parsed.code ? dealGame(pool, parsed.code) : null;
+  const code: ChallengeCode = deal ? parsed.code! : { seed: randomSeed(), poolVersion: pool.version };
   if (!deal) {
     field = []; // stale/malformed link: play a plain new game instead
-    code = { seed: randomSeed(), poolVersion: pool.version };
     deal = dealGame(pool, code);
   }
   if (deal) {
-    // `deal` is only ever produced from a call to `dealGame(pool, code)` above,
-    // so whenever it's non-null, `code` was the non-null argument that produced it.
     const url = new URL(window.location.href);
-    url.searchParams.set('c', encodeChallenge(code!));
+    url.searchParams.set('c', encodeChallenge(code));
     url.searchParams.delete('p');
     history.replaceState(null, '', url);
   }
@@ -55,7 +55,7 @@
     </div>
   </main>
 {:else if game.phase === 'summary'}
-  <Summary results={game.results} totalScore={game.totalScore} code={code!} {field} />
+  <Summary results={game.results} totalScore={game.totalScore} {code} {field} />
 {:else}
   <main class="w-full h-screen flex flex-col md:flex-row bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
     <section

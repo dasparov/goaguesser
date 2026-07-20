@@ -27,6 +27,9 @@
 
   let playerName = $state(localStorage.getItem('backyard-name') ?? '');
   let copied = $state(false);
+  let sharing = $state(false);
+  let copyError = $state(false);
+  let fallbackUrl = $state<string | null>(null);
 
   const me = $derived(makePlayer(playerName || null, results.map((r) => r.points)));
   // The board as it will look once this run is added — shown immediately so
@@ -53,35 +56,54 @@
   );
 
   async function share() {
-    localStorage.setItem('backyard-name', playerName);
-    const finalField = addToField(field, me);
-    const finalBoard = standings(finalField);
-    const myPosition = finalBoard.find((b) => b.player === me)?.position ?? finalBoard.length;
-
-    const url = buildShareUrl(window.location.origin + window.location.pathname, code, finalField);
-    const text = buildShareText({
-      rank, bar, total: totalScore, url,
-      position: myPosition, fieldSize: finalField.length,
-    });
-
+    sharing = true;
+    copyError = false;
+    fallbackUrl = null;
     try {
-      const blob = await renderShareCard({
-        distances: results.map((r) => r.distanceM),
-        rank, total: totalScore,
+      localStorage.setItem('backyard-name', playerName);
+      const finalField = addToField(field, me);
+      const finalBoard = standings(finalField);
+      const myPosition = finalBoard.find((b) => b.player === me)?.position ?? finalBoard.length;
+
+      const url = buildShareUrl(window.location.origin + window.location.pathname, code, finalField);
+      const text = buildShareText({
+        rank, bar, total: totalScore, url,
         position: myPosition, fieldSize: finalField.length,
-        standings: finalBoard.map((s) => ({
-          position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,
-        })),
       });
-      const file = new File([blob], 'backyard-goa.png', { type: 'image/png' });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text });
-        return;
+
+      try {
+        const blob = await renderShareCard({
+          distances: results.map((r) => r.distanceM),
+          rank, total: totalScore,
+          position: myPosition, fieldSize: finalField.length,
+          standings: finalBoard.map((s) => ({
+            position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,
+          })),
+        });
+        const file = new File([blob], 'backyard-goa.png', { type: 'image/png' });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text });
+          return;
+        }
+      } catch (err) {
+        // A cancelled share sheet rejects with AbortError — that's the player
+        // changing their mind, not a failure. Don't fall through to clipboard.
+        if (err instanceof Error && err.name === 'AbortError') return;
+        // Any other failure (unsupported API, card render error, ...) falls
+        // through to the clipboard fallback below.
       }
-    } catch { /* fall through to clipboard */ }
-    await navigator.clipboard.writeText(text);
-    copied = true;
-    setTimeout(() => (copied = false), 2000);
+
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+        setTimeout(() => (copied = false), 2000);
+      } catch {
+        copyError = true;
+        fallbackUrl = url;
+      }
+    } finally {
+      sharing = false;
+    }
   }
 
   function playAgain() {
@@ -161,12 +183,19 @@
       placeholder="Your name (for the board)"
       class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2.5 text-sm w-56 placeholder:text-[var(--ink-faint)] text-[var(--ink)]"
     />
-    <button onclick={share}
+    <button onclick={share} disabled={sharing}
       class="btn-primary px-8 py-2.5 font-bold uppercase text-sm">
-      {copied ? 'Copied!' : alone ? 'Share your score' : 'Add your score to the board'}
+      {sharing ? 'Sharing…' : copied ? 'Copied!' : alone ? 'Share your score' : 'Add your score to the board'}
     </button>
     <button onclick={playAgain} class="btn-secondary px-6 py-2.5 font-bold uppercase text-sm">
       Play again
     </button>
   </div>
+
+  {#if copyError && fallbackUrl}
+    <div class="w-full max-w-md text-center text-xs text-[var(--laterite)] -mt-4 mb-4">
+      <p>Couldn't copy — long-press the link instead</p>
+      <p class="mt-1 font-mono text-[var(--ink-soft)] break-all select-all">{fallbackUrl}</p>
+    </div>
+  {/if}
 </main>
