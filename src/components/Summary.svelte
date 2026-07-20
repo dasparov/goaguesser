@@ -122,7 +122,10 @@
 </script>
 
 <main class="w-full h-screen overflow-y-auto bg-[var(--porcelain)] text-[var(--ink)] flex flex-col items-center p-6 gap-5">
-  <h1 class="text-3xl font-black text-[var(--azulejo)] mt-4" style="font-family: var(--font-display)">
+  <div class="trophy-moment text-[var(--azulejo)] mt-4" aria-hidden="true">
+    <Trophy size={40} />
+  </div>
+  <h1 class="text-3xl font-black text-[var(--azulejo)] -mt-2" style="font-family: var(--font-display)">
     Challenge Complete
   </h1>
 
@@ -138,8 +141,10 @@
       Standings{#if !alone} — {board.length} on the board{/if}
     </h2>
     <div class="flex flex-col gap-1">
-      {#each board as { position, player }}
-        <div class="flex items-center justify-between px-3 py-1.5 rounded-[4px] text-sm font-mono tabular-nums {player === me ? 'bg-[var(--azulejo-pale)] font-bold' : ''}">
+      {#each board as { position, player }, i}
+        <div
+          class="standings-row relative flex items-center justify-between px-3 py-1.5 rounded-[4px] text-sm font-mono tabular-nums {player === me ? 'bg-[var(--azulejo-pale)] font-bold' : ''}"
+          style="animation-delay: {300 + i * 50}ms">
           <span class="flex items-center gap-2">
             <span class="text-[var(--ink-faint)] w-5">{position}</span>
             <span class="truncate max-w-[9rem]">{player.name ?? (player === me ? 'You' : 'Player')}</span>
@@ -147,6 +152,7 @@
             {#if player === mostAccurate}<span class="font-mono text-[10px] normal-case text-[var(--laterite)]">· most accurate</span>{/if}
           </span>
           <span class="text-[var(--ink)]">{formatPoints(player.total)}</span>
+          {#if player === me}<span class="own-row-underline" aria-hidden="true"></span>{/if}
         </div>
       {/each}
     </div>
@@ -208,3 +214,66 @@
     </div>
   {/if}
 </main>
+
+<style>
+  /* Delight (v2.1) — one orchestrated moment, docs/superpowers/specs/
+     visual-identity.md. Outside the prefers-reduced-motion query below,
+     every element here simply renders at its normal (final) state — the
+     static end-state prefers-reduced-motion requires falls out for free,
+     no extra rules needed. */
+  .own-row-underline {
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0;
+    height: 1px;
+    background: var(--azulejo);
+    transform-origin: left;
+    transform: scaleX(1);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .trophy-moment {
+      animation: trophy-in 0.7s both;
+      transform-origin: 50% 85%;
+    }
+    @keyframes trophy-in {
+      0% {
+        opacity: 0;
+        transform: scale(0.7) rotate(0deg);
+        animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+      }
+      64% {
+        opacity: 1;
+        transform: scale(1) rotate(-6deg);
+        animation-timing-function: ease-out;
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    .standings-row {
+      animation: standings-row-in 0.3s ease both;
+    }
+    @keyframes standings-row-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .own-row-underline {
+      animation: own-row-underline-in 0.3s ease 0.6s both;
+    }
+    @keyframes own-row-underline-in {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+  }
+</style>
