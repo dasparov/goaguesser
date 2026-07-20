@@ -66,8 +66,9 @@
 
     try {
       const blob = await renderShareCard({
-        total: totalScore, rank, bar,
-        rounds: results.map((r) => ({ name: r.location.name, distanceM: r.distanceM, points: r.points })),
+        distances: results.map((r) => r.distanceM),
+        rank, total: totalScore,
+        position: myPosition, fieldSize: finalField.length,
         standings: finalBoard.map((s) => ({
           position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,
         })),
