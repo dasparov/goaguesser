@@ -30,7 +30,7 @@
 </script>
 
 <div
-  class="fixed inset-x-0 bottom-0 h-[46vh] md:h-[38vh] flex flex-col md:flex-row z-[1000] border-t"
+  class="fixed inset-x-0 bottom-0 h-[55vh] md:h-[38vh] flex flex-col md:flex-row z-[1000] border-t"
   style="background: var(--panel); border-color: var(--rule)"
 >
   <div class="flex-1 min-h-0 relative">
@@ -42,8 +42,8 @@
     {/if}
   </div>
   <div
-    class="w-full md:w-72 shrink-0 p-4 flex flex-col gap-3 border-t md:border-t-0 md:border-l"
-    style="border-color: var(--rule)"
+    class="w-full md:w-72 shrink-0 px-4 pt-3 pb-3 md:py-4 flex flex-col gap-2 md:gap-3 border-t md:border-t-0 md:border-l"
+    style="border-color: var(--rule); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
   >
     <p class="font-mono text-xs" style="color: var(--ink-faint)">{dot.id}</p>
     {#if alreadyInPool}
@@ -52,6 +52,7 @@
       <input
         class="px-3 py-2 text-sm rounded-[4px] border"
         style="background: var(--porcelain); border-color: var(--rule); color: var(--ink)"
+        name="spot-name"
         placeholder="Name (optional)"
         bind:value={name}
       />
