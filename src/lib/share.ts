@@ -75,11 +75,15 @@ function sameName(a: Player, b: Player): boolean {
   return a.name !== null && b.name !== null && a.name.toLowerCase() === b.name.toLowerCase();
 }
 
-/** Adds (or replaces) a player, keeps the board sorted, and trims the tail. */
+/**
+ * Adds (or replaces) a player, keeps the board sorted, and trims the tail.
+ * `me` is always present in the result: when the board is full, the lowest
+ * scorer among everyone else is dropped instead, even if that's `me`'s own
+ * score that's actually lowest overall.
+ */
 export function addToField(field: Player[], me: Player): Player[] {
-  return [...field.filter((p) => !sameName(p, me)), me]
-    .sort((a, b) => b.total - a.total)
-    .slice(0, MAX_FIELD);
+  const others = field.filter((p) => !sameName(p, me)).sort((a, b) => b.total - a.total);
+  return [...others.slice(0, MAX_FIELD - 1), me].sort((a, b) => b.total - a.total);
 }
 
 export function standings(field: Player[]): Array<{ position: number; player: Player }> {

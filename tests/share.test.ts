@@ -92,8 +92,12 @@ describe('addToField', () => {
     expect(out.map((p) => p.name)).toEqual(['Kapil', 'Ana']);
     expect(out[0].total).toBe(25000);
   });
-  it('matches a returning player case-insensitively', () => {
-    expect(addToField([kapil], makePlayer('KAPIL', [0, 0, 0, 0, 0]))).toHaveLength(1);
+  it('matches a returning player case-insensitively and keeps the incoming data', () => {
+    const kapilAgain = makePlayer('KAPIL', [3000, 3000, 3000, 3000, 3000]);
+    const out = addToField([kapil], kapilAgain);
+    expect(out).toHaveLength(1);
+    expect(out[0].total).toBe(15000);
+    expect(out[0].name).toBe('KAPIL');
   });
   it('keeps nameless players distinct', () => {
     const anon = makePlayer(null, [0, 0, 0, 0, 0]);
@@ -106,6 +110,15 @@ describe('addToField', () => {
     expect(out).toHaveLength(MAX_FIELD);
     expect(out[0].name).toBe('Winner');
     expect(out.map((p) => p.name)).not.toContain('P0'); // lowest total
+  });
+  it('keeps a new lowest-scoring player on the board, dropping the previous lowest instead', () => {
+    const full = Array.from({ length: MAX_FIELD }, (_, i) =>
+      makePlayer(`P${i}`, [1000 + i, 0, 0, 0, 0])); // P0=1000 (lowest) .. P7=1007 (highest)
+    const me = makePlayer('Me', [0, 0, 0, 0, 0]); // lower than everyone already on the board
+    const out = addToField(full, me);
+    expect(out).toHaveLength(MAX_FIELD);
+    expect(out.map((p) => p.name)).toContain('Me');
+    expect(out.map((p) => p.name)).not.toContain('P0'); // was the previous lowest scorer
   });
 });
 
