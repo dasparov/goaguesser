@@ -2,6 +2,7 @@
   import type { Player } from '../lib/share';
   import { formatPoints, standings } from '../lib/share';
   import { isSoundOn, setSoundOn } from '../lib/sound';
+  import Trophy from './Trophy.svelte';
 
   let { round, totalScore, field }: {
     round: number;
@@ -16,13 +17,27 @@
   const leaderRunning = $derived(
     leader ? leader.scores.slice(0, round).reduce((a, b) => a + b, 0) : 0
   );
+  const board = $derived(standings(field));
 
   let soundOn = $state(isSoundOn());
   function toggleSound() {
     setSoundOn(!soundOn);
     soundOn = !soundOn;
   }
+
+  let boardOpen = $state(false);
+  function toggleBoard() {
+    boardOpen = !boardOpen;
+  }
+  function closeBoard() {
+    boardOpen = false;
+  }
+  function onWindowKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && boardOpen) closeBoard();
+  }
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 <div class="absolute top-4 left-4 z-[1000] max-w-[calc(100vw-2rem)] bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
   <h1 class="text-sm font-bold uppercase tracking-wide text-[var(--azulejo)]" style="font-family: var(--font-display)">GoaGuesser</h1>
@@ -49,8 +64,54 @@
 </div>
 
 {#if leader}
-  <div class="absolute top-16 left-4 z-[1000] bg-[var(--azulejo-pale)] border border-[var(--rule)] rounded-[4px] px-3 py-1 text-xs font-mono tabular-nums text-[var(--ink)]">
+  <button
+    onclick={toggleBoard}
+    aria-haspopup="dialog"
+    aria-expanded={boardOpen}
+    class="absolute top-16 left-4 z-[1000] bg-[var(--azulejo-pale)] border border-[var(--rule)] rounded-[4px] px-3 py-1 text-xs font-mono tabular-nums text-[var(--ink)] text-left">
     {leader.name ?? 'Someone'} leads with {formatPoints(leader.total)} — {field.length} on the board
+  </button>
+{/if}
+
+{#if leader && boardOpen}
+  <div class="absolute inset-0 z-[1100] flex items-start justify-center pt-16 px-4">
+    <button
+      onclick={closeBoard}
+      aria-label="Close standings"
+      class="absolute inset-0 w-full h-full cursor-default"
+    ></button>
+    <div
+      role="dialog"
+      aria-label="Standings"
+      aria-modal="true"
+      tabindex="-1"
+      class="relative bg-[var(--panel)] border border-[var(--rule)] rounded-[10px] w-full max-w-xs px-4 py-3 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wide text-[var(--ink-faint)]">Standings</h2>
+        <button
+          onclick={closeBoard}
+          aria-label="Close standings"
+          class="shrink-0 w-6 h-6 flex items-center justify-center border border-[var(--rule)] rounded-[4px]">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-soft)" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <line x1="4" y1="4" x2="20" y2="20" />
+            <line x1="20" y1="4" x2="4" y2="20" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex flex-col gap-1">
+        {#each board as { position, player }}
+          <div class="flex items-center justify-between px-2 py-1 rounded-[4px] text-sm font-mono tabular-nums">
+            <span class="flex items-center gap-2 min-w-0">
+              <span class="text-[var(--ink-faint)] w-4 shrink-0">{position}</span>
+              <span class="truncate max-w-[8rem]">{player.name ?? 'Player'}</span>
+              {#if position === 1}<span class="text-[var(--azulejo)] shrink-0"><Trophy size={13} /></span>{/if}
+            </span>
+            <span class="text-[var(--ink)]">{formatPoints(player.total)}</span>
+          </div>
+        {/each}
+      </div>
+      <p class="text-[10px] text-[var(--ink-faint)] mt-1">play these 5 spots and add yourself</p>
+    </div>
   </div>
 {/if}
 
