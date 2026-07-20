@@ -4,12 +4,12 @@ import { formatPoints, ordinal } from './share';
 // The share card is a fixed "printed survey chart on sand" — it always uses
 // the warm light palette regardless of the app's active theme (docs/superpowers/
 // specs/visual-identity.md, "Signature: the shot-group share card").
-const CARD_SAND = '#F5EDDF';
-const CARD_INK = '#2B1F16';
-const CARD_INK_SOFT = '#6B5847';
-const CARD_INK_FAINT = '#A08D77';
-const CARD_AZULEJO = '#1F4E8C';
-const CARD_LATERITE = '#B84A2B';
+const CARD_SAND = '#1B120A';
+const CARD_INK = '#F3EADA';
+const CARD_INK_SOFT = '#C4B49D';
+const CARD_INK_FAINT = '#8A7A63';
+const CARD_AZULEJO = '#86AEE3';
+const CARD_LATERITE = '#E06A44';
 const DISPLAY_FONT = '"Palatino Linotype", "Book Antiqua", Palatino, "Iowan Old Style", Georgia, serif';
 const MONO_FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
