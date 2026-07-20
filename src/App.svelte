@@ -4,11 +4,13 @@
   import Hud from './components/Hud.svelte';
   import GameFooter from './components/GameFooter.svelte';
   import Summary from './components/Summary.svelte';
+  import ViewToggle from './components/ViewToggle.svelte';
   import { loadPool } from './lib/locations';
   import { dealGame, encodeChallenge, randomSeed, ROUNDS, BACKUPS, type ChallengeCode } from './lib/seed';
   import { parseGameParams, type Player } from './lib/share';
   import { createGame } from './lib/game.svelte';
   import { playPin, playReveal } from './lib/sound';
+  import { loadViewMode, saveViewMode, paneFlex, type ViewMode } from './lib/viewMode';
 
   const TOKEN = import.meta.env.VITE_MAPILLARY_TOKEN as string;
   const pool = loadPool();
@@ -38,6 +40,37 @@
   const lastResult = $derived(
     game && game.results.length > 0 ? game.results[game.results.length - 1] : null
   );
+
+  // View-mode toggle (full panorama / full map / today's split), persisted
+  // across rounds and reloads. `loadViewMode` already falls back to 'split'
+  // for anything invalid or absent.
+  let viewMode: ViewMode = $state(loadViewMode());
+  $effect(() => {
+    saveViewMode(viewMode);
+  });
+
+  const paneFlexValues = $derived(paneFlex(viewMode, game?.phase === 'scored'));
+
+  // GuessMap and PanoViewer stay mounted in every mode (unmounting would
+  // reset Leaflet's state and tear down/rebuild the WebGL context on every
+  // toggle) — only their flex size changes. Leaflet caches its container
+  // size and the pano canvas can render one stale-sized frame right after a
+  // pane goes from 0 to visible, so both expose an imperative `resize()`
+  // called here right away and again once the `.pane-flex` transition (see
+  // app.css) settles.
+  let panoViewerRef: ReturnType<typeof PanoViewer> | undefined = $state();
+  let guessMapRef: ReturnType<typeof GuessMap> | undefined = $state();
+  $effect(() => {
+    void viewMode;
+    void game?.phase;
+    panoViewerRef?.resize();
+    guessMapRef?.resize();
+    const settle = setTimeout(() => {
+      panoViewerRef?.resize();
+      guessMapRef?.resize();
+    }, 400);
+    return () => clearTimeout(settle);
+  });
 </script>
 
 {#if !game}
@@ -58,42 +91,47 @@
 {:else if game.phase === 'summary'}
   <Summary results={game.results} totalScore={game.totalScore} {code} {field} />
 {:else}
-  <main class="w-full h-dvh flex flex-col md:flex-row bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
-    <section
-      class="w-full relative border-b md:border-b-0 md:border-r border-[var(--rule)] overflow-hidden"
-      style="flex: {game.phase === 'scored' ? .85 : 1.25}">
-      <PanoViewer
-        imageId={game.currentLocation.imageId}
-        token={TOKEN}
-        onloaderror={() => game.substituteCurrent()}
-      />
-      <Hud round={game.roundIndex} totalScore={game.totalScore} {field} />
-    </section>
-    <section
-      class="w-full flex flex-col"
-      style="flex: {game.phase === 'scored' ? 1.4 : 1}">
-      <div class="flex-grow relative">
+  <main class="w-full h-dvh flex flex-col bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
+    <div class="relative flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+      <section
+        class="w-full min-w-0 min-h-0 relative overflow-hidden pane-flex {viewMode === 'split' ? 'border-b md:border-b-0 md:border-r border-[var(--rule)]' : ''}"
+        style="flex: {paneFlexValues.pano}">
+        <PanoViewer
+          bind:this={panoViewerRef}
+          imageId={game.currentLocation.imageId}
+          token={TOKEN}
+          onloaderror={() => game.substituteCurrent()}
+        />
+        <Hud round={game.roundIndex} totalScore={game.totalScore} {field} />
+      </section>
+      <section
+        class="w-full min-w-0 min-h-0 relative overflow-hidden pane-flex"
+        style="flex: {paneFlexValues.map}">
         <GuessMap
+          bind:this={guessMapRef}
           interactive={game.phase === 'playing'}
           roundIndex={game.roundIndex}
           result={game.phase === 'scored' ? lastResult : null}
           onpin={(lat, lng) => { game.pin(lat, lng); playPin(); }}
         />
+      </section>
+      <div class="absolute bottom-3 right-3 z-[1000]">
+        <ViewToggle mode={viewMode} onchange={(m) => (viewMode = m)} />
       </div>
-      <GameFooter
-        phase={game.phase}
-        result={lastResult}
-        canSubmit={game.guess !== null}
-        isLastRound={game.roundIndex === ROUNDS - 1}
-        {field}
-        roundIndex={game.roundIndex}
-        onsubmit={() => {
-          game.submit();
-          const r = game.results[game.results.length - 1];
-          if (r) playReveal(r.distanceM);
-        }}
-        onnext={() => game.next()}
-      />
-    </section>
+    </div>
+    <GameFooter
+      phase={game.phase}
+      result={lastResult}
+      canSubmit={game.guess !== null}
+      isLastRound={game.roundIndex === ROUNDS - 1}
+      {field}
+      roundIndex={game.roundIndex}
+      onsubmit={() => {
+        game.submit();
+        const r = game.results[game.results.length - 1];
+        if (r) playReveal(r.distanceM);
+      }}
+      onnext={() => game.next()}
+    />
   </main>
 {/if}
