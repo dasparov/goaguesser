@@ -153,6 +153,14 @@
     map?.flyTo([lat, lng], zoom);
   }
 
+  // Imperative resize hook (same pattern as GuessMap.svelte) — called from
+  // Curator.svelte whenever an overlay (basket/spot sheet) opens or closes,
+  // since Leaflet caches its container size and won't notice a visible-area
+  // change on its own until invalidateSize() forces a re-measure.
+  export function resize() {
+    map?.invalidateSize();
+  }
+
   onMount(() => {
     // zoomControl: false — the default top-left position collides with the toolbar
     // badge; re-added bottom-left instead, clear of every other overlay.
