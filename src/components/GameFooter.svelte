@@ -24,7 +24,7 @@
   );
 </script>
 
-<footer class="w-full bg-[var(--panel)]/95 backdrop-blur border-t border-[var(--rule)] p-4 min-h-[90px] flex flex-col sm:flex-row items-center justify-between gap-4">
+<footer class="w-full bg-[var(--panel)] border-t border-[var(--rule)] p-4 min-h-[90px] flex flex-col sm:flex-row items-center justify-between gap-4">
   {#if phase === 'playing'}
     <div class="text-center sm:text-left">
       <p class="text-sm font-semibold text-[var(--ink)]">Where in Goa is this?</p>
@@ -33,21 +33,21 @@
     <button
       disabled={!canSubmit}
       onclick={onsubmit}
-      class="w-full sm:w-auto px-6 py-2.5 bg-[var(--azulejo)] disabled:bg-[var(--rule)] disabled:text-[var(--ink-faint)] hover:opacity-90 text-white disabled:cursor-not-allowed font-bold uppercase text-xs tracking-wider rounded-[5px] transition-opacity">
+      class="btn-primary w-full sm:w-auto px-6 py-2.5 font-bold uppercase text-xs tracking-wider">
       Submit guess
     </button>
   {:else if phase === 'scored' && result}
     <div class="flex items-center gap-3 flex-wrap justify-center">
-      <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-3 py-1.5">
+      <div class="card-flat stat-chip-in px-3 py-1.5" style="animation-delay: 0ms">
         <span class="text-[10px] text-[var(--ink-faint)] block uppercase font-bold">Distance</span>
         <span class="text-sm font-mono tabular-nums font-bold text-[var(--laterite)]">{formatDistance(result.distanceM)}</span>
       </div>
-      <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-3 py-1.5">
+      <div class="card-flat stat-chip-in px-3 py-1.5" style="animation-delay: 40ms">
         <span class="text-[10px] text-[var(--ink-faint)] block uppercase font-bold">You</span>
         <span class="text-sm font-mono tabular-nums font-bold text-[var(--azulejo)]">+{formatPoints(result.points)}</span>
       </div>
-      {#each fieldRoundScores as p}
-        <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-3 py-1.5">
+      {#each fieldRoundScores as p, i}
+        <div class="card-flat stat-chip-in px-3 py-1.5" style="animation-delay: {(i + 2) * 40}ms">
           <span class="text-[10px] text-[var(--ink-faint)] block uppercase font-bold truncate max-w-[6rem]">{p.name ?? 'Player'}</span>
           <span class="text-sm font-mono tabular-nums font-bold text-[var(--ink-soft)]">+{formatPoints(p.points)}</span>
         </div>
@@ -59,7 +59,7 @@
     </div>
     <button
       onclick={onnext}
-      class="w-full sm:w-auto px-6 py-2.5 bg-[var(--azulejo)] hover:opacity-90 text-white font-bold uppercase text-xs tracking-wider rounded-[5px] transition-opacity">
+      class="btn-primary w-full sm:w-auto px-6 py-2.5 font-bold uppercase text-xs tracking-wider">
       {isLastRound ? 'See summary' : 'Next round'}
     </button>
   {/if}

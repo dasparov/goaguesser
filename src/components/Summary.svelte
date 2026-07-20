@@ -74,14 +74,14 @@
     Challenge Complete
   </h1>
 
-  <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[22px] px-10 py-5 text-center shadow-[var(--shadow)]">
+  <div class="card-flat px-10 py-5 text-center">
     <div class="text-5xl font-black font-mono tabular-nums text-[var(--azulejo)]">{formatPoints(totalScore)}</div>
     <div class="text-xs text-[var(--ink-faint)] uppercase tracking-widest mt-1 font-mono tabular-nums">/ {formatPoints(MAX_GAME_POINTS)}</div>
     <div class="text-[var(--ink)] font-bold mt-2 italic" style="font-family: var(--font-display)">{rank}</div>
     <div class="text-2xl mt-2">{bar}</div>
   </div>
 
-  <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[22px] px-8 py-4 w-full max-w-md shadow-[var(--shadow)]">
+  <div class="card-flat px-8 py-4 w-full max-w-md">
     <h2 class="text-sm font-bold uppercase tracking-wide text-[var(--ink-faint)] mb-3">
       Standings{#if !alone} — {board.length} on the board{/if}
     </h2>
@@ -100,7 +100,7 @@
   </div>
 
   {#if leader}
-    <div class="bg-[var(--panel)] border border-[var(--rule)] rounded-[22px] px-8 py-4 text-center w-full max-w-md shadow-[var(--shadow)]">
+    <div class="card-flat px-8 py-4 text-center w-full max-w-md">
       <div class="text-sm font-bold text-[var(--ink-soft)] uppercase tracking-wide mb-2">
         You vs {leader.name ?? 'the leader'}
       </div>
@@ -125,7 +125,7 @@
 
   <div class="w-full max-w-md flex flex-col gap-1.5">
     {#each results as r}
-      <div class="flex items-center justify-between bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2 text-sm">
+      <div class="card-flat flex items-center justify-between px-4 py-2 text-sm">
         <span>{emojiForDistance(r.distanceM)} <span class="italic" style="font-family: var(--font-display)">{r.location.name}</span></span>
         <span class="font-mono tabular-nums text-[var(--ink-soft)]">{formatDistance(r.distanceM)} · <span class="text-[var(--azulejo)]">+{formatPoints(r.points)}</span></span>
       </div>
@@ -140,10 +140,10 @@
       class="bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2.5 text-sm w-56 placeholder:text-[var(--ink-faint)] text-[var(--ink)]"
     />
     <button onclick={share}
-      class="px-8 py-2.5 bg-[var(--azulejo)] hover:opacity-90 font-bold uppercase text-sm rounded-[5px] text-white">
+      class="btn-primary px-8 py-2.5 font-bold uppercase text-sm">
       {copied ? 'Copied!' : alone ? 'Share your score' : 'Add your score to the board'}
     </button>
-    <button onclick={playAgain} class="px-6 py-2.5 border border-[var(--rule)] hover:border-[var(--ink-faint)] font-bold uppercase text-sm rounded-[5px] text-[var(--ink-soft)]">
+    <button onclick={playAgain} class="btn-secondary px-6 py-2.5 font-bold uppercase text-sm">
       Play again
     </button>
   </div>

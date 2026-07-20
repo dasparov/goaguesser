@@ -51,7 +51,7 @@
     <div>
       <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Can't reach street view 😕</h1>
       <p class="mb-4">Check your connection and try again.</p>
-      <button onclick={() => location.reload()} class="px-6 py-2 bg-[var(--azulejo)] text-white font-bold rounded-[5px]">Retry</button>
+      <button onclick={() => location.reload()} class="btn-primary px-6 py-2 font-bold">Retry</button>
     </div>
   </main>
 {:else if game.phase === 'summary'}
