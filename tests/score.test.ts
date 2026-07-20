@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { haversineM, pointsForDistance, formatDistance, emojiForDistance } from '../src/lib/score';
+import { haversineM, pointsForDistance, missForPoints, formatDistance, emojiForDistance } from '../src/lib/score';
 
 describe('haversineM', () => {
   it('is zero for identical points', () => {
@@ -31,6 +31,31 @@ describe('pointsForDistance', () => {
       const p = pointsForDistance(d);
       expect(p).toBeLessThanOrEqual(prev);
       prev = p;
+    }
+  });
+});
+
+describe('missForPoints', () => {
+  it('is the floor distance at and above max points', () => {
+    expect(missForPoints(5000)).toBe(25);
+    expect(missForPoints(6000)).toBe(25);
+  });
+  it('is the ceiling distance at and below zero points', () => {
+    expect(missForPoints(0)).toBe(15000);
+    expect(missForPoints(-10)).toBe(15000);
+  });
+  it('round-trips through pointsForDistance within ±1', () => {
+    for (const p of [1250, 2500, 4000]) {
+      expect(pointsForDistance(missForPoints(p))).toBeCloseTo(p, -1 /* within ~1 */);
+      expect(Math.abs(pointsForDistance(missForPoints(p)) - p)).toBeLessThanOrEqual(1);
+    }
+  });
+  it('is monotonically decreasing as points rise', () => {
+    let prev = Infinity;
+    for (let p = 0; p <= 5000; p += 100) {
+      const m = missForPoints(p);
+      expect(m).toBeLessThanOrEqual(prev);
+      prev = m;
     }
   });
 });

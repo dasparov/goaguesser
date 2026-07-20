@@ -5,7 +5,7 @@
     buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints,
     makePlayer, addToField, standings, type Player,
   } from '../lib/share';
-  import { formatDistance, emojiForDistance, MAX_GAME_POINTS } from '../lib/score';
+  import { formatDistance, emojiForDistance, MAX_GAME_POINTS, missForPoints } from '../lib/score';
   import { renderShareCard } from '../lib/card';
 
   let { results, totalScore, code, field }: {
@@ -32,6 +32,25 @@
   // The board as it will look once this run is added — shown immediately so
   // the player sees themselves in the standings before they even share.
   const board = $derived(standings(addToField(field, me)));
+
+  // Accuracy is derived, never carried in the URL: the current player's real
+  // distances give the exact figure; everyone else's misses are recovered
+  // from their scores via missForPoints (correct by construction, since those
+  // scores were themselves produced by pointsForDistance).
+  const myAvgMiss = $derived(
+    results.reduce((sum, r) => sum + r.distanceM, 0) / results.length
+  );
+  function avgMissFor(player: Player): number {
+    if (player === me) return myAvgMiss;
+    return player.scores.reduce((sum, s) => sum + missForPoints(s), 0) / player.scores.length;
+  }
+  // "Most accurate" is only interesting once there's someone to compare
+  // against — often a different person from the points leader.
+  const mostAccurate = $derived(
+    board.length >= 2
+      ? board.reduce((best, cur) => (avgMissFor(cur.player) < avgMissFor(best.player) ? cur : best)).player
+      : null
+  );
 
   async function share() {
     localStorage.setItem('backyard-name', playerName);
@@ -79,6 +98,7 @@
     <div class="text-xs text-[var(--ink-faint)] uppercase tracking-widest mt-1 font-mono tabular-nums">/ {formatPoints(MAX_GAME_POINTS)}</div>
     <div class="text-[var(--ink)] font-bold mt-2 italic" style="font-family: var(--font-display)">{rank}</div>
     <div class="text-2xl mt-2">{bar}</div>
+    <div class="text-xs font-mono tabular-nums text-[var(--ink-soft)] mt-2">avg miss {formatDistance(myAvgMiss)}</div>
   </div>
 
   <div class="card-flat px-8 py-4 w-full max-w-md">
@@ -92,6 +112,7 @@
             <span class="text-[var(--ink-faint)] w-5">{position}</span>
             <span class="truncate max-w-[9rem]">{player.name ?? (player === me ? 'You' : 'Player')}</span>
             {#if position === 1}<span>🏆</span>{/if}
+            {#if player === mostAccurate}<span class="font-mono text-[10px] normal-case text-[var(--laterite)]">· most accurate</span>{/if}
           </span>
           <span class="text-[var(--ink)]">{formatPoints(player.total)}</span>
         </div>

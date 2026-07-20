@@ -20,6 +20,13 @@ export function pointsForDistance(m: number): number {
   return Math.round(MAX_POINTS * (1 - m / ZERO_POINTS_AT_M) ** 2);
 }
 
+/** Inverse of pointsForDistance: the miss distance implied by a round score. */
+export function missForPoints(points: number): number {
+  if (points >= MAX_POINTS) return FULL_POINTS_WITHIN_M;
+  if (points <= 0) return ZERO_POINTS_AT_M;
+  return ZERO_POINTS_AT_M * (1 - Math.sqrt(points / MAX_POINTS));
+}
+
 export function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} m away` : `${(m / 1000).toFixed(1)} km away`;
 }
