@@ -8,6 +8,7 @@
   import { dealGame, encodeChallenge, randomSeed, ROUNDS, BACKUPS, type ChallengeCode } from './lib/seed';
   import { parseGameParams, type Player } from './lib/share';
   import { createGame } from './lib/game.svelte';
+  import { playPin, playReveal } from './lib/sound';
 
   const TOKEN = import.meta.env.VITE_MAPILLARY_TOKEN as string;
   const pool = loadPool();
@@ -76,7 +77,7 @@
           interactive={game.phase === 'playing'}
           roundIndex={game.roundIndex}
           result={game.phase === 'scored' ? lastResult : null}
-          onpin={(lat, lng) => game.pin(lat, lng)}
+          onpin={(lat, lng) => { game.pin(lat, lng); playPin(); }}
         />
       </div>
       <GameFooter
@@ -86,7 +87,11 @@
         isLastRound={game.roundIndex === ROUNDS - 1}
         {field}
         roundIndex={game.roundIndex}
-        onsubmit={() => game.submit()}
+        onsubmit={() => {
+          game.submit();
+          const r = game.results[game.results.length - 1];
+          if (r) playReveal(r.distanceM);
+        }}
         onnext={() => game.next()}
       />
     </section>

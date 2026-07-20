@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Player } from '../lib/share';
   import { formatPoints, standings } from '../lib/share';
+  import { isSoundOn, setSoundOn } from '../lib/sound';
 
   let { round, totalScore, field }: {
     round: number;
@@ -15,6 +16,12 @@
   const leaderRunning = $derived(
     leader ? leader.scores.slice(0, round).reduce((a, b) => a + b, 0) : 0
   );
+
+  let soundOn = $state(isSoundOn());
+  function toggleSound() {
+    setSoundOn(!soundOn);
+    soundOn = !soundOn;
+  }
 </script>
 
 <div class="absolute top-4 left-4 z-[1000] max-w-[calc(100vw-2rem)] bg-[var(--panel)] border border-[var(--rule)] rounded-[5px] px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -29,6 +36,12 @@
       <span class="shrink-0">{formatPoints(leaderRunning)}</span>
     </span>
   {/if}
+  <button
+    onclick={toggleSound}
+    aria-label={soundOn ? 'Mute sound' : 'Unmute sound'}
+    class="shrink-0 w-6 h-6 flex items-center justify-center border border-[var(--rule)] rounded-[4px] text-xs leading-none">
+    {soundOn ? '🔊' : '🔇'}
+  </button>
 </div>
 
 {#if leader}
