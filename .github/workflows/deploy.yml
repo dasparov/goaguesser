@@ -21,6 +21,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm test
+      - run: npx svelte-check --tsconfig ./tsconfig.app.json
       - run: npm run build
         env:
           VITE_MAPILLARY_TOKEN: ${{ secrets.VITE_MAPILLARY_TOKEN }}

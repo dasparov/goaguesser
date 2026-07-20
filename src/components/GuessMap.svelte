@@ -17,8 +17,8 @@
   // load-bearing — amber for the guess pin, emerald for the actual-answer pin,
   // laterite for the dashed reveal line. Keep these three visually distinct.
   const AMBER = '#C8801A';
-  const EMERALD = '#167851';
-  const LATERITE = '#BE4228';
+  const EMERALD = '#1B7A4E';
+  const LATERITE = '#B84A2B';
 
   let el: HTMLDivElement;
   let map: L.Map | undefined;

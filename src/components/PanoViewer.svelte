@@ -36,4 +36,4 @@
   onDestroy(() => viewer?.remove());
 </script>
 
-<div bind:this={container} class="w-full h-full bg-slate-900"></div>
+<div bind:this={container} class="w-full h-full bg-[var(--porcelain)]"></div>
