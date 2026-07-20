@@ -46,6 +46,10 @@
     basket = basket.filter((b) => b.imageId !== imageId);
   }
 
+  function clearBasket() {
+    basket = [];
+  }
+
   function surpriseMe() {
     const candidates = dots.filter((d) => !poolIds.has(d.id) && !keptIds.has(d.id));
     if (candidates.length === 0) return;
@@ -91,7 +95,7 @@
     </div>
   </div>
 
-  <BasketPanel {basket} onremove={remove} />
+  <BasketPanel {basket} onremove={remove} onclearbasket={clearBasket} />
 
   {#if selected}
     <SpotPanel
