@@ -1,0 +1,4 @@
+# Backyard: Goa — curation list
+# One Mapillary image ID per line, optional "# Name" after it.
+# Find IDs: https://www.mapillary.com/app/ → zoom to Goa → click a green
+# line → copy the pKey value from the URL. Then run: npm run curate
