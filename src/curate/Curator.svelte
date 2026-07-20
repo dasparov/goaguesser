@@ -51,10 +51,20 @@
     if (candidates.length === 0) return;
     selectDot(candidates[Math.floor(Math.random() * candidates.length)]);
   }
+
+  let mapComp: { flyTo: (lat: number, lng: number, zoom?: number) => void } | undefined;
+
+  // Where Goa's 360° imagery actually lives (API coverage audit, 2026-07-20).
+  // Everywhere else in the state is nearly empty — lead the curator to the material.
+  const HOTSPOTS = [
+    { label: 'Arambol', lat: 15.697, lng: 73.694 },
+    { label: 'Mandrem–Morjim', lat: 15.628, lng: 73.723 },
+    { label: 'Candolim', lat: 15.503, lng: 73.781 },
+  ];
 </script>
 
 <div class="h-screen w-screen relative overflow-hidden" style="background: var(--porcelain); color: var(--ink)">
-  <CuratorMap {token} {poolIds} {keptIds} bind:dots bind:status ondotclick={selectDot} />
+  <CuratorMap bind:this={mapComp} {token} {poolIds} {keptIds} bind:dots bind:status ondotclick={selectDot} />
 
   <div class="absolute top-4 left-4 flex items-start gap-3 z-[900]">
     <div class="card-flat px-3 py-2" style="background: var(--panel)">
@@ -72,6 +82,13 @@
     <button class="btn-secondary px-3 py-2 text-sm self-start" disabled={dots.length === 0} onclick={surpriseMe}>
       Surprise me
     </button>
+    <div class="flex gap-2 self-start">
+      {#each HOTSPOTS as h (h.label)}
+        <button class="btn-secondary px-3 py-2 text-sm" onclick={() => mapComp?.flyTo(h.lat, h.lng)}>
+          {h.label}
+        </button>
+      {/each}
+    </div>
   </div>
 
   <BasketPanel {basket} onremove={remove} />

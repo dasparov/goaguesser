@@ -141,6 +141,11 @@
     debounceTimer = setTimeout(fetchViewport, DEBOUNCE_MS);
   }
 
+  /** Fly the map to a known coverage hotspot (called from the toolbar). */
+  export function flyTo(lat: number, lng: number, zoom = 14) {
+    map?.flyTo([lat, lng], zoom);
+  }
+
   onMount(() => {
     // zoomControl: false — the default top-left position collides with the toolbar
     // badge; re-added bottom-left instead, clear of every other overlay.
