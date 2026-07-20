@@ -18,6 +18,15 @@
 
   onDestroy(() => pano?.destroy());
 
+  // Imperative resize hook for the view-mode toggle (App.svelte) — called via
+  // bind:this right after a pane's flex value changes, and again once the
+  // CSS transition settles, so the canvas doesn't render a frame at its
+  // pre-toggle size (a ResizeObserver already covers the general case, but
+  // this forces an immediate read instead of waiting for its next callback).
+  export function resize() {
+    pano?.resize();
+  }
+
   function loadImage(src: string, signal: AbortSignal): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       if (signal.aborted) {

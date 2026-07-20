@@ -6,6 +6,10 @@
 
 export interface Pano360 {
   setTexture(img: HTMLImageElement): void;
+  // Forces an immediate canvas/viewport resize read instead of waiting for
+  // the internal ResizeObserver's next callback — used by the view-mode
+  // toggle so a just-shown pane doesn't render one frame at its stale size.
+  resize(): void;
   destroy(): void;
 }
 
@@ -308,6 +312,10 @@ export function createPano360(canvas: HTMLCanvasElement): Pano360 {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
       hasTexture = true;
       requestRender();
+    },
+    resize() {
+      if (destroyed) return;
+      resize();
     },
     destroy() {
       if (destroyed) return;

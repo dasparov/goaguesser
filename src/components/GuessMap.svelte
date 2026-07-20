@@ -94,6 +94,15 @@
   });
 
   onDestroy(() => map?.remove());
+
+  // Imperative resize hook for the view-mode toggle (App.svelte) — called via
+  // bind:this right after a pane's flex value changes, and again once the
+  // CSS transition settles. Leaflet caches its container size and does not
+  // watch it itself, so a hidden-then-shown map renders stale/grey tiles
+  // until invalidateSize() forces it to re-measure and redraw.
+  export function resize() {
+    map?.invalidateSize();
+  }
 </script>
 
 <div bind:this={el} class="w-full h-full"></div>
