@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { BasketSpot } from './types';
   import {
     DEFAULT_REPO,
@@ -11,15 +12,37 @@
     type PublishResult,
   } from './github';
 
+  // `open` only governs the phone bottom-sheet presentation — on `md+` the
+  // basket stays the always-visible side panel it always was, independent
+  // of this flag (see `isDesktop` below).
   let {
     basket,
+    open,
+    onclose,
     onremove,
     onclearbasket,
   }: {
     basket: BasketSpot[];
+    open: boolean;
+    onclose: () => void;
     onremove: (imageId: string) => void;
     onclearbasket: () => void;
   } = $props();
+
+  // Tracks the `md` breakpoint in JS (not just CSS) so the sheet can be made
+  // properly `inert` — unfocusable and hidden from assistive tech — while
+  // translated off-screen on phones, without ever making the always-visible
+  // desktop panel inert.
+  let isDesktop = $state(false);
+  onMount(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => (isDesktop = mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  });
+  const sheetVisible = $derived(isDesktop || open);
 
   let justExported = $state(false);
   let copied = $state(false);
@@ -145,23 +168,60 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && showSetup) closeSetup();
+    if (e.key !== 'Escape') return;
+    if (showSetup) {
+      closeSetup();
+      return;
+    }
+    // Only the phone sheet is closeable — on desktop `open` never gates
+    // visibility, so this is a no-op there.
+    if (open) onclose();
   }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
+{#if !isDesktop && open}
+  <button
+    class="md:hidden fixed inset-0 z-[950] motion-safe:transition-opacity motion-safe:duration-200 motion-reduce:transition-none"
+    style="background: color-mix(in srgb, var(--porcelain) 65%, transparent)"
+    onclick={onclose}
+    aria-label="Close basket"
+  ></button>
+{/if}
+
 <aside
-  class="absolute top-4 right-4 bottom-4 w-64 max-w-[80vw] card-flat p-3 flex flex-col gap-3 z-[900] overflow-y-auto"
-  style="background: var(--panel)"
+  inert={!sheetVisible}
+  aria-label="Basket"
+  class="fixed inset-x-0 bottom-0 z-[1000] max-h-[65vh] rounded-t-[10px] border-t flex flex-col gap-3 p-3
+         motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none
+         {open ? 'translate-y-0' : 'translate-y-full pointer-events-none'}
+         md:pointer-events-auto md:translate-y-0 md:absolute md:inset-x-auto md:top-4 md:right-4 md:bottom-4
+         md:w-64 md:max-w-[80vw] md:max-h-none md:rounded-[10px] md:border md:border-t-0"
+  style="background: var(--panel); border-color: var(--rule); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
 >
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between shrink-0">
     <h2 class="font-display text-base" style="color: var(--ink)">Basket</h2>
-    <span class="font-mono text-sm" style="color: var(--ink-faint)">{basket.length}</span>
+    <div class="flex items-center gap-2">
+      <span class="font-mono text-sm" style="color: var(--ink-faint)">{basket.length}</span>
+      <button
+        class="md:hidden w-9 h-9 flex items-center justify-center border rounded-[4px]"
+        style="border-color: var(--rule)"
+        onclick={onclose}
+        aria-label="Close basket"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-soft)" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+          <line x1="4" y1="4" x2="20" y2="20" />
+          <line x1="20" y1="4" x2="4" y2="20" />
+        </svg>
+      </button>
+    </div>
   </div>
 
+  <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
+
   {#if basket.length === 0}
-    <p class="text-xs" style="color: var(--ink-faint)">Click a dot on the map and Keep it.</p>
+    <p class="text-xs" style="color: var(--ink-faint)">Tap a dot on the map and Keep it.</p>
   {:else}
     <ul class="flex flex-col gap-2">
       {#each basket as spot (spot.imageId)}
@@ -244,6 +304,7 @@
         npm run curate -- --import ~/Downloads/goaguesser-spots.json
       </p>
     {/if}
+  </div>
   </div>
 </aside>
 
