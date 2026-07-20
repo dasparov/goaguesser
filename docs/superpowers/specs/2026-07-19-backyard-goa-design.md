@@ -18,7 +18,7 @@ A GeoGuessr-style geography guessing game set entirely in Goa, India. A player s
 | UI framework | Svelte 5 (runes) + TypeScript + Vite |
 | Styling | Tailwind CSS |
 | 360° viewer | mapillary-js v4 (free Mapillary client token, baked into bundle — public by design) |
-| Guess map | Leaflet + CartoDB Positron **No Labels** tiles (anti-cheat) |
+| Guess map | Leaflet + CartoDB Positron tiles, **labeled** (owner decision after first playtest 2026-07-20: recognising a place is the skill; finding it on the map should not be) |
 | Distance | Client-side haversine (pure TS) |
 | Tests | Vitest (pure-logic modules only) |
 | Hosting | GitHub Pages via GitHub Action on push |
@@ -179,4 +179,4 @@ HUD permanently shows: Mapillary (imagery), © OpenStreetMap contributors, © CA
 
 ## Out of scope (YAGNI)
 
-Accounts, server leaderboards, timers, daily challenge, movement/step limits, multiple regions, anti-cheat beyond no-labels tiles (image IDs are visible in the network tab; accepted for this audience).
+Accounts, server leaderboards, timers, daily challenge, movement/step limits, multiple regions, anti-cheat beyond curation (image IDs are visible in the network tab; accepted for this audience).

@@ -36,7 +36,9 @@
 
   onMount(() => {
     map = L.map(el, { center: GOA_CENTER, zoom: GOA_ZOOM });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    // Labeled tiles by owner decision after the first playtest: recognising a
+    // place from the panorama is the skill; finding it on the map shouldn't be.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
