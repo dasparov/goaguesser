@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
-@import 'mapillary-js/dist/mapillary.css';
 
 @theme {
   /* Font tokens — docs/superpowers/specs/visual-identity.md.
