@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { parseSpots, validateImage, toLocation, fetchImage } from './curate-lib';
+import { parseSpots, validateImage, applyCuratedLocations, fetchImage, type CuratedEntry } from './curate-lib';
 import type { LocationPool } from '../src/lib/locations';
 
 const POOL_PATH = 'src/data/locations.json';
@@ -23,11 +23,14 @@ async function main() {
   const pool = JSON.parse(readFileSync(POOL_PATH, 'utf8')) as LocationPool;
   const existing = new Set(pool.locations.map((l) => l.imageId));
   const spots = parseSpots(readFileSync(SPOTS_PATH, 'utf8'));
-  const newVersion = pool.version + 1;
-  let added = 0;
+  const curated: CuratedEntry[] = [];
 
   for (const spot of spots) {
-    if (existing.has(spot.imageId)) continue; // already curated on a previous run
+    if (existing.has(spot.imageId)) {
+      // already in the pool, or a duplicate of an earlier line in this same spots.txt run
+      console.warn(`SKIP image ${spot.imageId} is already in the pool`);
+      continue;
+    }
     try {
       const img = await fetchImage(spot.imageId, token);
       const problem = validateImage(img, existing);
@@ -35,20 +38,21 @@ async function main() {
         console.warn(`SKIP ${problem}`);
         continue;
       }
-      pool.locations.push(toLocation(spot.imageId, spot.name, img, newVersion));
+      curated.push({ imageId: spot.imageId, name: spot.name, img });
       existing.add(spot.imageId);
-      added++;
       console.log(`OK   ${spot.imageId} ${spot.name ?? ''}`);
     } catch (e) {
       console.warn(`SKIP ${spot.imageId}: ${(e as Error).message}`);
     }
   }
 
-  if (added > 0) {
-    pool.version = newVersion;
-    writeFileSync(POOL_PATH, JSON.stringify(pool, null, 2) + '\n');
+  const nextPool = applyCuratedLocations(pool, curated);
+  if (nextPool.version !== pool.version) {
+    writeFileSync(POOL_PATH, JSON.stringify(nextPool, null, 2) + '\n');
   }
-  console.log(`\nAdded ${added} location(s). Pool now v${pool.version} with ${pool.locations.length} spots.`);
+  console.log(
+    `\nAdded ${curated.length} location(s). Pool now v${nextPool.version} with ${nextPool.locations.length} spots.`
+  );
 }
 
 main();

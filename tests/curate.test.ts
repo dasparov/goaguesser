@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseSpots, validateImage, toLocation, type MapillaryImage } from '../scripts/curate-lib';
+import {
+  parseSpots,
+  validateImage,
+  toLocation,
+  applyCuratedLocations,
+  type MapillaryImage,
+} from '../scripts/curate-lib';
+import type { Location, LocationPool } from '../src/lib/locations';
 
 const goodImg = (id = '123'): MapillaryImage => ({
   id, is_pano: true, computed_geometry: { coordinates: [73.83, 15.49] }, // [lng, lat]
@@ -29,6 +36,99 @@ describe('validateImage', () => {
   it('rejects coordinates outside Goa', () => {
     const mumbai: MapillaryImage = { id: 'x', is_pano: true, computed_geometry: { coordinates: [72.87, 19.07] } };
     expect(validateImage(mumbai, new Set())).toMatch(/outside goa/i);
+  });
+  it('rejects a missing computed_geometry with a clear message instead of throwing', () => {
+    const malformed = { id: 'no-geo', is_pano: true, computed_geometry: undefined } as unknown as MapillaryImage;
+    expect(() => validateImage(malformed, new Set())).not.toThrow();
+    expect(validateImage(malformed, new Set())).toMatch(/missing.*geometry|geometry.*missing/i);
+  });
+  it('rejects null coordinates with a clear message instead of throwing', () => {
+    const malformed = {
+      id: 'null-coords',
+      is_pano: true,
+      computed_geometry: { coordinates: null },
+    } as unknown as MapillaryImage;
+    expect(() => validateImage(malformed, new Set())).not.toThrow();
+    expect(validateImage(malformed, new Set())).toMatch(/missing.*geometry|malformed.*geometry|geometry.*malformed/i);
+  });
+});
+
+describe('applyCuratedLocations', () => {
+  const existingLocation = (imageId: string, version = 1): Location => ({
+    imageId,
+    name: `Spot ${imageId}`,
+    lat: 15.49,
+    lng: 73.83,
+    version,
+  });
+
+  const entry = (imageId: string, name: string | null = null) => ({
+    imageId,
+    name,
+    img: goodImg(imageId),
+  });
+
+  it('appends new entries and leaves every pre-existing entry byte-identical and in original order', () => {
+    const pre = [existingLocation('1'), existingLocation('2'), existingLocation('3')];
+    const pool: LocationPool = { version: 1, locations: pre };
+
+    const result = applyCuratedLocations(pool, [entry('4', 'Fourth'), entry('5', 'Fifth')]);
+
+    expect(result.locations.slice(0, 3)).toEqual(pre);
+    expect(result.locations[0]).toBe(pre[0]);
+    expect(result.locations[1]).toBe(pre[1]);
+    expect(result.locations[2]).toBe(pre[2]);
+    expect(result.locations.map((l) => l.imageId)).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('stamps new entries with the bumped pool version', () => {
+    const pool: LocationPool = { version: 4, locations: [existingLocation('1', 4)] };
+
+    const result = applyCuratedLocations(pool, [entry('2', 'New spot')]);
+
+    expect(result.version).toBe(5);
+    const added = result.locations.find((l) => l.imageId === '2');
+    expect(added?.version).toBe(5);
+  });
+
+  it('bumps the pool version only when at least one entry is actually added', () => {
+    const pool: LocationPool = { version: 2, locations: [existingLocation('1', 2)] };
+
+    const result = applyCuratedLocations(pool, []);
+
+    expect(result.version).toBe(2);
+    expect(result.locations).toEqual(pool.locations);
+  });
+
+  it('does not add an image ID already present in the pool twice across separate runs', () => {
+    const firstRun = applyCuratedLocations({ version: 1, locations: [] }, [entry('1', 'First')]);
+    expect(firstRun.version).toBe(2);
+    expect(firstRun.locations).toHaveLength(1);
+
+    const secondRun = applyCuratedLocations(firstRun, [entry('1', 'First again'), entry('2', 'Second')]);
+
+    expect(secondRun.locations.filter((l) => l.imageId === '1')).toHaveLength(1);
+    expect(secondRun.locations.map((l) => l.imageId)).toEqual(['1', '2']);
+    expect(secondRun.version).toBe(3);
+  });
+
+  it('handles the empty pool (the current shipped state) correctly', () => {
+    const emptyPool: LocationPool = { version: 1, locations: [] };
+
+    const result = applyCuratedLocations(emptyPool, [entry('1', 'Fontainhas')]);
+
+    expect(result).toEqual({
+      version: 2,
+      locations: [{ imageId: '1', name: 'Fontainhas', lat: 15.49, lng: 73.83, version: 2 }],
+    });
+  });
+
+  it('leaves an empty pool with no new entries completely unchanged', () => {
+    const emptyPool: LocationPool = { version: 1, locations: [] };
+
+    const result = applyCuratedLocations(emptyPool, []);
+
+    expect(result).toEqual(emptyPool);
   });
 });
 

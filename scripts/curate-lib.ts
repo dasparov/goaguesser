@@ -1,4 +1,4 @@
-import type { Location } from '../src/lib/locations';
+import type { Location, LocationPool } from '../src/lib/locations';
 
 export const GOA_BBOX = { minLat: 14.85, maxLat: 15.85, minLng: 73.65, maxLng: 74.35 };
 
@@ -22,7 +22,11 @@ export function parseSpots(text: string): Array<{ imageId: string; name: string 
 export function validateImage(img: MapillaryImage, existingIds: Set<string>): string | null {
   if (existingIds.has(img.id)) return `image ${img.id} is already in the pool`;
   if (!img.is_pano) return `image ${img.id} is not a 360° panorama`;
-  const [lng, lat] = img.computed_geometry.coordinates;
+  const coordinates = img.computed_geometry?.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return `image ${img.id} has missing or malformed geometry`;
+  }
+  const [lng, lat] = coordinates;
   const b = GOA_BBOX;
   if (lat < b.minLat || lat > b.maxLat || lng < b.minLng || lng > b.maxLng) {
     return `image ${img.id} is outside Goa (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
@@ -38,6 +42,43 @@ export function toLocation(
 ): Location {
   const [lng, lat] = img.computed_geometry.coordinates;
   return { imageId, name: name ?? 'Somewhere in Goa', lat, lng, version };
+}
+
+export interface CuratedEntry {
+  imageId: string;
+  name: string | null;
+  img: MapillaryImage;
+}
+
+/**
+ * Pure pool-mutation decision: given the current pool and a batch of already-validated
+ * new entries, returns the next pool state. Responsible for the three rules that must
+ * never regress, since old challenge links pin themselves to a pool version and replay
+ * entries at or below it:
+ *   - append-only: pre-existing entries are preserved byte-identical and in order
+ *   - new entries are stamped with pool.version + 1
+ *   - the version only bumps when at least one entry is actually added
+ *   - an image ID already in the pool (or already added earlier in this same batch)
+ *     is never added twice
+ * No I/O happens here; curate.ts is responsible for reading, fetching, and writing.
+ */
+export function applyCuratedLocations(pool: LocationPool, entries: CuratedEntry[]): LocationPool {
+  const existing = new Set(pool.locations.map((l) => l.imageId));
+  const nextVersion = pool.version + 1;
+  const added: Location[] = [];
+
+  for (const entry of entries) {
+    if (existing.has(entry.imageId)) continue;
+    added.push(toLocation(entry.imageId, entry.name, entry.img, nextVersion));
+    existing.add(entry.imageId);
+  }
+
+  if (added.length === 0) return pool;
+
+  return {
+    version: nextVersion,
+    locations: [...pool.locations, ...added],
+  };
 }
 
 export async function fetchImage(imageId: string, token: string): Promise<MapillaryImage> {
