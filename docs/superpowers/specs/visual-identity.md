@@ -39,7 +39,7 @@ Dark theme (`prefers-color-scheme: dark` and `:root[data-theme="dark"]`):
 | `--emerald-solid` | `#46B584` |
 | `--amber` | `#E0A340` |
 
-Shadow: `0 1px 2px rgba(43,31,22,.06), 0 8px 24px -12px rgba(43,31,22,.18)` (light) / `0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7)` (dark).
+Shadows: none — the design is flat. Separation comes from the sand/shell two-tone and 1px `--rule` hairlines.
 
 **Marker colors are load-bearing.** `GuessMap`'s `divIcon` factory uses `--amber` for the guess pin and `--emerald-solid` for the answer pin; the reveal polyline is `--laterite`, dashed. These three must stay visually distinct — they are how the reveal reads at a glance.
 
@@ -65,12 +65,14 @@ Shadow: `0 1px 2px rgba(43,31,22,.06), 0 8px 24px -12px rgba(43,31,22,.18)` (lig
 - Corner radius: 22px on the outer frame, 4–5px on buttons, chips and stat tiles. Not `rounded-lg` everywhere.
 
 
-## Slickness rules (v2)
+## Slickness rules (v2 — FLAT)
 
-"Slick" is executed as precision, not decoration:
+"Warm, slick, flat." Slickness is precision; flatness is the finish. No gradients, no drop shadows, no glassmorphism anywhere.
 
-- **Buttons are pills** (`border-radius: 999px`) with a soft top-light: `background: linear-gradient(180deg, color-mix(in srgb, var(--azulejo) 88%, white) 0%, var(--azulejo) 55%)`, shadow from the token above. Pressed state translates down 1px and drops the outer shadow. Transitions: `transform .06s ease, box-shadow .12s ease` — nothing longer.
-- Cards/stat tiles: 10px radius (was 4–5px), 1px `--rule` border, panel ground.
+- **Buttons are pills** (`border-radius: 999px`), **solid** `--azulejo` fill, white text, no gradient, no shadow. Hover darkens the fill 6% (`color-mix(in srgb, var(--azulejo) 94%, black)`); pressed state translates down 1px. Transitions: `transform .06s ease, background-color .12s ease` — nothing longer.
+- Secondary buttons: transparent fill, 1px `--rule` border, `--ink-soft` text.
+- Cards/stat tiles: 10px radius, **1px `--rule` hairline border, flat `--panel` fill, no shadow**. Depth comes from the two-tone ground (`--porcelain` page vs `--panel` surface), never from shadows.
+- The shadow token is retired. Floating elements over the map/pano (HUD chips, banner) separate by solid fill + hairline border instead.
 - The reveal's stat chips slide up 6px + fade in over .18s, staggered 40ms apart; respect `prefers-reduced-motion`.
 - Everything else stays quiet. One signature element carries the boldness:
 
