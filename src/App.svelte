@@ -3,6 +3,7 @@
   import GuessMap from './components/GuessMap.svelte';
   import Hud from './components/Hud.svelte';
   import GameFooter from './components/GameFooter.svelte';
+  import Summary from './components/Summary.svelte';
   import { loadPool } from './lib/locations';
   import { dealGame, encodeChallenge, randomSeed, ROUNDS, BACKUPS, type ChallengeCode } from './lib/seed';
   import { parseGameParams, type Player } from './lib/share';
@@ -53,6 +54,8 @@
       <button onclick={() => location.reload()} class="px-6 py-2 bg-[var(--azulejo)] text-white font-bold rounded-[5px]">Retry</button>
     </div>
   </main>
+{:else if game.phase === 'summary'}
+  <Summary results={game.results} totalScore={game.totalScore} code={code!} {field} />
 {:else}
   <main class="w-full h-screen flex flex-col md:flex-row bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
     <section
