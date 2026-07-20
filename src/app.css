@@ -124,6 +124,16 @@ body {
   background: var(--panel);
 }
 
+/* View-mode toggle (App.svelte): animates the panorama/map pane split when
+   the mode changes or the reveal-time shift kicks in. Respects
+   prefers-reduced-motion — reduced-motion users get the instant jump the
+   layout already had before this transition was added. */
+@media (prefers-reduced-motion: no-preference) {
+  .pane-flex {
+    transition: flex .4s ease;
+  }
+}
+
 /* Reveal stat chips: slide up + fade, staggered via inline animation-delay. */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes stat-chip-in {
