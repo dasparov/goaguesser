@@ -144,3 +144,16 @@ body {
     animation: stat-chip-in .18s ease both;
   }
 }
+
+/* Curator top bar: the hotspot-chip row scrolls horizontally on narrow
+   phones instead of wrapping/clipping — the scrollbar itself would be
+   visual noise in a 44px-tall bar, so it's hidden while touch/wheel
+   scrolling still works. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
