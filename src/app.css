@@ -1,3 +1,77 @@
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
 @import 'mapillary-js/dist/mapillary.css';
+
+:root {
+  /* Light theme (default) — docs/superpowers/specs/visual-identity.md */
+  --porcelain: #F6F8FB;
+  --panel: #FFFFFF;
+  --ink: #0E1F2E;
+  --ink-soft: #4A6076;
+  --ink-faint: #8098AE;
+  --rule: #DBE4EE;
+  --azulejo: #2C5AA8;
+  --azulejo-pale: #E2EAF7;
+  --laterite: #BE4228;
+  --emerald-solid: #167851;
+  --amber: #C8801A;
+  --shadow: 0 1px 2px rgba(14, 31, 46, .06), 0 8px 24px -12px rgba(14, 31, 46, .18);
+
+  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Iowan Old Style', Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --porcelain: #0A141D;
+    --panel: #12212E;
+    --ink: #E6EDF5;
+    --ink-soft: #9BB0C4;
+    --ink-faint: #63798E;
+    --rule: #23384A;
+    --azulejo: #79A5E8;
+    --azulejo-pale: #1B3050;
+    --laterite: #E8674A;
+    --emerald-solid: #3FB489;
+    --amber: #E0A340;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+  }
+}
+
+/* Explicit theme override (e.g. a future in-app toggle) wins over the OS preference either way. */
+:root[data-theme='dark'] {
+  --porcelain: #0A141D;
+  --panel: #12212E;
+  --ink: #E6EDF5;
+  --ink-soft: #9BB0C4;
+  --ink-faint: #63798E;
+  --rule: #23384A;
+  --azulejo: #79A5E8;
+  --azulejo-pale: #1B3050;
+  --laterite: #E8674A;
+  --emerald-solid: #3FB489;
+  --amber: #E0A340;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+}
+
+:root[data-theme='light'] {
+  --porcelain: #F6F8FB;
+  --panel: #FFFFFF;
+  --ink: #0E1F2E;
+  --ink-soft: #4A6076;
+  --ink-faint: #8098AE;
+  --rule: #DBE4EE;
+  --azulejo: #2C5AA8;
+  --azulejo-pale: #E2EAF7;
+  --laterite: #BE4228;
+  --emerald-solid: #167851;
+  --amber: #C8801A;
+  --shadow: 0 1px 2px rgba(14, 31, 46, .06), 0 8px 24px -12px rgba(14, 31, 46, .18);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--porcelain);
+  color: var(--ink);
+}
