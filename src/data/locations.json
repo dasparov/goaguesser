@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "locations": [
     {
       "imageId": "2839049556349011",
@@ -91,6 +91,48 @@
       "lat": 15.696789241622,
       "lng": 73.697545578372,
       "version": 2
+    },
+    {
+      "imageId": "305843971106635",
+      "name": "Somewhere in Goa",
+      "lat": 15.695083275339,
+      "lng": 73.698356611506,
+      "version": 3
+    },
+    {
+      "imageId": "779287246057644",
+      "name": "Somewhere in Goa",
+      "lat": 15.695676219489,
+      "lng": 73.697805825806,
+      "version": 3
+    },
+    {
+      "imageId": "175566244475029",
+      "name": "Somewhere in Goa",
+      "lat": 15.492889966464,
+      "lng": 73.773820209929,
+      "version": 3
+    },
+    {
+      "imageId": "137373018334701",
+      "name": "Somewhere in Goa",
+      "lat": 15.696610049067,
+      "lng": 73.697579374935,
+      "version": 3
+    },
+    {
+      "imageId": "219763646288411",
+      "name": "Somewhere in Goa",
+      "lat": 15.69482780774,
+      "lng": 73.698557869025,
+      "version": 3
+    },
+    {
+      "imageId": "177164630987075",
+      "name": "Somewhere in Goa",
+      "lat": 15.619702641025,
+      "lng": 73.737291931845,
+      "version": 3
     }
   ]
 }
