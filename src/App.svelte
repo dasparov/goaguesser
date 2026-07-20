@@ -41,14 +41,14 @@
 </script>
 
 {#if !game}
-  <main class="w-full h-screen flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
+  <main class="w-full h-dvh flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
       <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">GoaGuesser</h1>
       <p>Not enough locations curated yet. Run <code class="bg-[var(--azulejo-pale)] text-[var(--azulejo)] px-1 rounded-[4px]">npm run curate</code> with at least {ROUNDS + BACKUPS} spots.</p>
     </div>
   </main>
 {:else if game.phase === 'error'}
-  <main class="w-full h-screen flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
+  <main class="w-full h-dvh flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
       <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Can't reach street view</h1>
       <p class="mb-4">Check your connection and try again.</p>
@@ -58,7 +58,7 @@
 {:else if game.phase === 'summary'}
   <Summary results={game.results} totalScore={game.totalScore} {code} {field} />
 {:else}
-  <main class="w-full h-screen flex flex-col md:flex-row bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
+  <main class="w-full h-dvh flex flex-col md:flex-row bg-[var(--porcelain)] text-[var(--ink)] overflow-hidden">
     <section
       class="w-full relative border-b md:border-b-0 md:border-r border-[var(--rule)] overflow-hidden"
       style="flex: {game.phase === 'scored' ? .85 : 1.25}">
