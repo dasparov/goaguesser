@@ -43,14 +43,14 @@
 {#if !game}
   <main class="w-full h-screen flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
-      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Backyard: Goa 🏖️</h1>
+      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Backyard: Goa</h1>
       <p>Not enough locations curated yet. Run <code class="bg-[var(--azulejo-pale)] text-[var(--azulejo)] px-1 rounded-[4px]">npm run curate</code> with at least {ROUNDS + BACKUPS} spots.</p>
     </div>
   </main>
 {:else if game.phase === 'error'}
   <main class="w-full h-screen flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
-      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Can't reach street view 😕</h1>
+      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">Can't reach street view</h1>
       <p class="mb-4">Check your connection and try again.</p>
       <button onclick={() => location.reload()} class="btn-primary px-6 py-2 font-bold">Retry</button>
     </div>

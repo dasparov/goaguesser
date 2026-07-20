@@ -39,8 +39,12 @@
   <button
     onclick={toggleSound}
     aria-label={soundOn ? 'Mute sound' : 'Unmute sound'}
-    class="shrink-0 w-6 h-6 flex items-center justify-center border border-[var(--rule)] rounded-[4px] text-xs leading-none">
-    {soundOn ? '🔊' : '🔇'}
+    class="shrink-0 w-6 h-6 flex items-center justify-center border border-[var(--rule)] rounded-[4px]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-soft)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+      <path d="M4 9v6h4l5 4V5L8 9H4z" />
+      <path d="M16 8.5a5 5 0 0 1 0 7" />
+      {#if !soundOn}<line x1="3" y1="3" x2="21" y2="21" />{/if}
+    </svg>
   </button>
 </div>
 

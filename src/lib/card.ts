@@ -58,6 +58,59 @@ function fillTextSpaced(ctx: CanvasRenderingContext2D, text: string, x: number, 
   }
 }
 
+/**
+ * The same flat geometric trophy as `Trophy.svelte`, drawn with canvas paths
+ * instead of the 🏆 glyph (docs/superpowers/specs/visual-identity.md,
+ * "Iconography — no emoji in the UI"). `(x, y)` is the top-left corner of a
+ * `size`×`size` box; `color` fills solid, no outline/gradient.
+ */
+function drawTrophy(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  const s = size / 24; // local shapes are authored on a 24-unit grid
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.fillStyle = color;
+
+  // bowl
+  roundRectPath(ctx, 7, 4, 10, 8, 1.5);
+  ctx.fill();
+
+  // left handle (crescent)
+  ctx.beginPath();
+  ctx.arc(7, 8.5, 3, Math.PI * 0.5, Math.PI * 1.5, false);
+  ctx.arc(7, 8.5, 1.5, Math.PI * 1.5, Math.PI * 0.5, true);
+  ctx.closePath();
+  ctx.fill();
+
+  // right handle (crescent)
+  ctx.beginPath();
+  ctx.arc(17, 8.5, 3, Math.PI * 1.5, Math.PI * 0.5, false);
+  ctx.arc(17, 8.5, 1.5, Math.PI * 0.5, Math.PI * 1.5, true);
+  ctx.closePath();
+  ctx.fill();
+
+  // stem
+  ctx.fillRect(11, 12, 2, 4);
+
+  // wide base
+  roundRectPath(ctx, 9, 16, 6, 1.5, 0.5);
+  ctx.fill();
+  roundRectPath(ctx, 7, 17.5, 10, 1.5, 0.75);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 export interface ShareCardStandingRow {
   position: number;
   name: string | null;
@@ -161,14 +214,18 @@ export async function renderShareCard(opts: {
   ctx.font = `bold 28px ${MONO_FONT}`;
   ctx.fillText(`avg miss ${formatMiss(avgMiss)}`, MARGIN, y);
 
-  // Standings (up to three rows; own row azulejo, 🏆 on the leader).
+  // Standings (up to three rows; own row azulejo, drawn trophy on the leader).
   if (rows.length > 0) {
     y += 90;
     for (const row of rows) {
       ctx.fillStyle = row.isMe ? CARD_AZULEJO : CARD_INK_SOFT;
       ctx.font = `bold 30px ${MONO_FONT}`;
       ctx.textAlign = 'left';
-      ctx.fillText(`${row.position}. ${row.name ?? 'Player'}${row.position === 1 ? ' 🏆' : ''}`, MARGIN, y);
+      const label = `${row.position}. ${row.name ?? 'Player'}`;
+      ctx.fillText(label, MARGIN, y);
+      if (row.position === 1) {
+        drawTrophy(ctx, MARGIN + ctx.measureText(label).width + 10, y - 22, 22, CARD_AZULEJO);
+      }
       ctx.textAlign = 'right';
       ctx.fillText(formatPoints(row.total), W - MARGIN, y);
       ctx.textAlign = 'left';

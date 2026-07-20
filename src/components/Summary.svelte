@@ -5,8 +5,9 @@
     buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints,
     makePlayer, addToField, standings, type Player,
   } from '../lib/share';
-  import { formatDistance, emojiForDistance, MAX_GAME_POINTS, missForPoints } from '../lib/score';
+  import { formatDistance, MAX_GAME_POINTS, missForPoints } from '../lib/score';
   import { renderShareCard } from '../lib/card';
+  import Trophy from './Trophy.svelte';
 
   let { results, totalScore, code, field }: {
     results: RoundResult[];
@@ -21,9 +22,18 @@
 
   // The pre-existing leader of the incoming field (before this run is added)
   // — the same notion the HUD compared against during play. Kept distinct
-  // from the 🏆 in the standings table below, which marks position 1 of the
-  // *final* board and may end up being the player themselves.
+  // from the trophy in the standings table below, which marks position 1 of
+  // the *final* board and may end up being the player themselves.
   const leader = $derived(field.length > 0 ? standings(field)[0].player : null);
+
+  const outcome = $derived.by(() => {
+    if (!leader) return null;
+    const diff = totalScore - leader.total;
+    const leaderName = leader.name ?? 'the leader';
+    if (diff > 0) return `You beat ${leaderName} by ${formatPoints(diff)}`;
+    if (diff < 0) return `${leader.name ?? 'The leader'} beat you by ${formatPoints(-diff)}`;
+    return "It's a tie";
+  });
 
   let playerName = $state(localStorage.getItem('backyard-name') ?? '');
   let copied = $state(false);
@@ -120,7 +130,6 @@
     <div class="text-5xl font-black font-mono tabular-nums text-[var(--azulejo)]">{formatPoints(totalScore)}</div>
     <div class="text-xs text-[var(--ink-faint)] uppercase tracking-widest mt-1 font-mono tabular-nums">/ {formatPoints(MAX_GAME_POINTS)}</div>
     <div class="text-[var(--ink)] font-bold mt-2 italic" style="font-family: var(--font-display)">{rank}</div>
-    <div class="text-2xl mt-2">{bar}</div>
     <div class="text-xs font-mono tabular-nums text-[var(--ink-soft)] mt-2">avg miss {formatDistance(myAvgMiss)}</div>
   </div>
 
@@ -134,7 +143,7 @@
           <span class="flex items-center gap-2">
             <span class="text-[var(--ink-faint)] w-5">{position}</span>
             <span class="truncate max-w-[9rem]">{player.name ?? (player === me ? 'You' : 'Player')}</span>
-            {#if position === 1}<span>🏆</span>{/if}
+            {#if position === 1}<span class="text-[var(--azulejo)] shrink-0"><Trophy size={14} /></span>{/if}
             {#if player === mostAccurate}<span class="font-mono text-[10px] normal-case text-[var(--laterite)]">· most accurate</span>{/if}
           </span>
           <span class="text-[var(--ink)]">{formatPoints(player.total)}</span>
@@ -145,8 +154,8 @@
 
   {#if leader}
     <div class="card-flat px-8 py-4 text-center w-full max-w-md">
-      <div class="text-sm font-bold text-[var(--ink-soft)] uppercase tracking-wide mb-2">
-        You vs {leader.name ?? 'the leader'}
+      <div class="text-sm font-bold text-[var(--ink)] mb-2">
+        {outcome}
       </div>
       <div class="flex flex-col gap-1">
         {#each results as r, i}
@@ -170,7 +179,7 @@
   <div class="w-full max-w-md flex flex-col gap-1.5">
     {#each results as r}
       <div class="card-flat flex items-center justify-between px-4 py-2 text-sm">
-        <span>{emojiForDistance(r.distanceM)} <span class="italic" style="font-family: var(--font-display)">{r.location.name}</span></span>
+        <span class="italic" style="font-family: var(--font-display)">{r.location.name}</span>
         <span class="font-mono tabular-nums text-[var(--ink-soft)]">{formatDistance(r.distanceM)} · <span class="text-[var(--azulejo)]">+{formatPoints(r.points)}</span></span>
       </div>
     {/each}
