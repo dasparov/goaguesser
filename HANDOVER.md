@@ -16,7 +16,7 @@ A GeoGuessr-style game set only in Goa. Five 360° panoramas per game; you drop 
 ## The two things you actually do
 
 ### Play and share
-Open the site. The URL becomes `?c=<code>` immediately — **that is the challenge**, shareable at any moment. Play five rounds, tap **Share your score**: WhatsApp gets your rank, emoji bar, a dark shot-group card, and a short link (TinyURL, with silent fallback to the full URL). Whoever opens it plays your exact five spots with you as the ghost to beat. Each finisher adds themselves, so the board grows down the chat, up to 8 players. Tap the banner on any challenge link to see the standings without playing.
+Open the site. The URL becomes `?c=<code>` immediately — **that is the challenge**, shareable at any moment. Play five rounds, tap **Share your score**: WhatsApp gets your rank, emoji bar, a dark shot-group card, and the challenge link. Whoever opens it plays your exact five spots with you as the ghost to beat. Each finisher adds themselves, so the board grows down the chat, up to 8 players. Tap the banner on any challenge link to see the standings without playing.
 
 ### Add spots
 Open the curator on your phone → tap a hotspot chip (Arambol / Mandrem–Morjim / Candolim) → tap dots → preview the panorama → **Keep** → open the basket pill → **Publish to game**. A GitHub Action validates each spot against the Mapillary API, appends the good ones, and redeploys. Live in ~3 minutes.
@@ -48,7 +48,6 @@ First publish asks for a GitHub token (it links you to the page and names the tw
 | Game state machine (runes) | `src/lib/game.svelte.ts` |
 | 360° viewer (custom WebGL) | `src/lib/pano360.ts` |
 | Canvas share card | `src/lib/card.ts` |
-| Link shortening | `src/lib/shorten.ts` |
 | Curator + GitHub publish | `src/curate/` |
 | Curation CLI (`--import`, `--rename`, `--autoname`) | `scripts/curate.ts`, `scripts/curate-lib.ts` |
 | Design system (binding) | `docs/superpowers/specs/visual-identity.md` |
@@ -62,7 +61,7 @@ Design in one line: warm dark by default (`#1B120A`, never black), tile-blue acc
 ## Ideas noted but not built
 
 - **Season / fixtures** — needs no code: post a fresh link each Sunday, "board closes Friday".
-- **Short domain** — a real `.in` domain (~₹500–800/yr) would beat the shortener; GitHub Pages supports it natively.
+- **Short domain** — the only good way to shorten links. A real `.in` domain (~₹500–800/yr) points straight at the game; GitHub Pages supports it natively. URL shorteners were tried and removed: TinyURL bounces visitors through its own page first.
 - **Rename spots** — `npm run curate -- --rename <imageId> "Chapora Fort Road"` for better names than the auto-assigned areas.
 - Per-score OG previews (needs a server), more curator hotspots as Mapillary coverage grows.
 
