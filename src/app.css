@@ -15,38 +15,41 @@
 }
 
 :root {
-  /* Light theme (default) — docs/superpowers/specs/visual-identity.md (v2, warm) */
-  --porcelain: #F5EDDF;
-  --panel: #FDF9F0;
-  --ink: #2B1F16;
-  --ink-soft: #6B5847;
-  --ink-faint: #A08D77;
-  --rule: #E6D9C4;
-  --azulejo: #1F4E8C;
-  --azulejo-pale: #E8EDF5;
-  --laterite: #B84A2B;
-  --emerald-solid: #1B7A4E;
-  --amber: #C8801A;
+  /* Dark theme (default) — docs/superpowers/specs/visual-identity.md (v2.1, "Dark by
+     default"). Warm terracotta-dark ground, never pure black. */
+  color-scheme: dark light;
+  --porcelain: #1B120A;
+  --panel: #261A0E;
+  --ink: #F3EADA;
+  --ink-soft: #C4B49D;
+  --ink-faint: #8A7A63;
+  --rule: #3B2C1C;
+  --azulejo: #86AEE3;
+  --azulejo-pale: #22314E;
+  --laterite: #E06A44;
+  --emerald-solid: #46B584;
+  --amber: #E0A340;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --porcelain: #1B120A;
-    --panel: #261A0E;
-    --ink: #F3EADA;
-    --ink-soft: #C4B49D;
-    --ink-faint: #8A7A63;
-    --rule: #3B2C1C;
-    --azulejo: #86AEE3;
-    --azulejo-pale: #22314E;
-    --laterite: #E06A44;
-    --emerald-solid: #46B584;
-    --amber: #E0A340;
+    --porcelain: #F5EDDF;
+    --panel: #FDF9F0;
+    --ink: #2B1F16;
+    --ink-soft: #6B5847;
+    --ink-faint: #A08D77;
+    --rule: #E6D9C4;
+    --azulejo: #1F4E8C;
+    --azulejo-pale: #E8EDF5;
+    --laterite: #B84A2B;
+    --emerald-solid: #1B7A4E;
+    --amber: #C8801A;
   }
 }
 
 /* Explicit theme override (e.g. a future in-app toggle) wins over the OS preference either way. */
 :root[data-theme='dark'] {
+  color-scheme: dark;
   --porcelain: #1B120A;
   --panel: #261A0E;
   --ink: #F3EADA;
@@ -61,6 +64,7 @@
 }
 
 :root[data-theme='light'] {
+  color-scheme: light;
   --porcelain: #F5EDDF;
   --panel: #FDF9F0;
   --ink: #2B1F16;
