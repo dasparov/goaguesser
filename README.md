@@ -1,47 +1,43 @@
-# Svelte + TS + Vite
+# Backyard: Goa 🏖️
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+A GeoGuessr-style guessing game set entirely in Goa. See a 360° street view,
+drop a pin, score by proximity. 5 rounds, 25,000 max. Free stack: Mapillary +
+Leaflet + CartoDB, no backend.
 
-## Recommended IDE Setup
+## Develop
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+1. `npm install`
+2. Copy `.env.example` → `.env`, add a free Mapillary client token
+   (mapillary.com/dashboard/developers). It's a public client-side token —
+   safe to bake into the bundle — but keep the `.env` file itself out of git
+   (it's already gitignored).
+3. `npm run dev`
 
-## Need an official Svelte framework?
+The production build (`npm run build`) fails deliberately if
+`VITE_MAPILLARY_TOKEN` is unset, so the game can never ship without one.
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## Add locations
 
-## Technical considerations
+1. Find a Mapillary 360° image in Goa (e.g. via
+   https://www.mapillary.com/app/) and copy its image ID.
+2. Add it to `scripts/spots.txt`, one per line, with an optional `# Name`
+   comment.
+3. Run `npm run curate`. It looks up each image on the Mapillary Graph API,
+   keeps only images that are a real panorama, fall inside Goa's bounding
+   box, and aren't already in the pool, then appends the valid ones to
+   `src/data/locations.json`.
 
-**Why use this over SvelteKit?**
+`src/data/locations.json` is generated and **append-only** — never hand-edit
+it. Old challenge links pin themselves to a pool version, and rewriting or
+reordering existing entries would break them.
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+## Deploy
 
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+Push to `main`. GitHub Actions builds and deploys to Pages. One-time setup:
+repo Settings → Pages → Source: GitHub Actions; and Settings → Secrets and
+variables → Actions → add `VITE_MAPILLARY_TOKEN`.
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+## Design docs
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
-```
+- Spec: `docs/superpowers/specs/2026-07-19-backyard-goa-design.md`
+- Plan: `docs/superpowers/plans/2026-07-19-backyard-goa.md`
