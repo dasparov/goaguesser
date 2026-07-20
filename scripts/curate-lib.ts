@@ -1,4 +1,5 @@
 import type { Location, LocationPool } from '../src/lib/locations';
+import { haversineM } from '../src/lib/score';
 
 export const GOA_BBOX = { minLat: 14.85, maxLat: 15.85, minLng: 73.65, maxLng: 74.35 };
 
@@ -144,4 +145,55 @@ export async function fetchImage(imageId: string, token: string): Promise<Mapill
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Mapillary API ${res.status} for image ${imageId}`);
   return (await res.json()) as MapillaryImage;
+}
+
+/**
+ * Pure display-name edit: returns a new pool with exactly one entry's `name`
+ * changed, same order, same pool version, everything else byte-identical.
+ * Names are display-only — they must never touch id, coords, or version, so
+ * old challenge links (which pin a pool version, not a name) stay intact.
+ * Returns null if `imageId` isn't in the pool.
+ */
+export function renameLocation(pool: LocationPool, imageId: string, name: string): LocationPool | null {
+  if (!pool.locations.some((l) => l.imageId === imageId)) return null;
+  return {
+    version: pool.version,
+    locations: pool.locations.map((l) => (l.imageId === imageId ? { ...l, name } : l)),
+  };
+}
+
+/** Audited coarse-area centers for --autoname (haversine nearest-center lookup). */
+export const AREA_CENTERS: Array<{ name: string; lat: number; lng: number }> = [
+  { name: 'Arambol', lat: 15.697, lng: 73.694 },
+  { name: 'Mandrem', lat: 15.642, lng: 73.723 },
+  { name: 'Ashvem–Morjim', lat: 15.614, lng: 73.723 },
+  { name: 'Candolim–Nerul', lat: 15.503, lng: 73.781 },
+  { name: 'Canacona', lat: 14.975, lng: 74.044 },
+];
+
+/** The nearest audited area center's name, by haversine distance. */
+export function nearestAreaName(lat: number, lng: number): string {
+  return AREA_CENTERS.reduce((best, center) =>
+    haversineM(lat, lng, center.lat, center.lng) < haversineM(lat, lng, best.lat, best.lng) ? center : best
+  ).name;
+}
+
+/** A name that carries no real information — the untouched default, or blank. */
+function isPlaceholderName(name: string): boolean {
+  return name.trim() === '' || name.trim().toLowerCase() === 'somewhere in goa';
+}
+
+/**
+ * For every location whose name is empty or "Somewhere in Goa"-ish, sets a
+ * coarse area name from the nearest audited center. Names only — order, ids,
+ * coords, and version are all untouched; real (already-set) names are left
+ * exactly as they are.
+ */
+export function autonameLocations(pool: LocationPool): LocationPool {
+  return {
+    version: pool.version,
+    locations: pool.locations.map((l) =>
+      isPlaceholderName(l.name) ? { ...l, name: nearestAreaName(l.lat, l.lng) } : l
+    ),
+  };
 }

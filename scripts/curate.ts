@@ -6,6 +6,8 @@ import {
   fetchImage,
   parseImportJson,
   dedupeSpots,
+  renameLocation,
+  autonameLocations,
   type CuratedEntry,
 } from './curate-lib';
 import type { LocationPool } from '../src/lib/locations';
@@ -32,13 +34,51 @@ function readImportPath(argv: string[]): string | null {
   return path;
 }
 
+/** `--rename <imageId> "New name"` — display-name-only edit of one existing entry. */
+function readRenameArgs(argv: string[]): { imageId: string; name: string } | null {
+  const flagIndex = argv.indexOf('--rename');
+  if (flagIndex === -1) return null;
+  const imageId = argv[flagIndex + 1];
+  const name = argv[flagIndex + 2];
+  if (!imageId || !name) {
+    throw new Error('--rename requires an imageId and a name, e.g. --rename 123456 "Fontainhas"');
+  }
+  return { imageId, name };
+}
+
+function writePool(pool: LocationPool) {
+  writeFileSync(POOL_PATH, JSON.stringify(pool, null, 2) + '\n');
+}
+
 async function main() {
+  const pool = JSON.parse(readFileSync(POOL_PATH, 'utf8')) as LocationPool;
+  const argv = process.argv.slice(2);
+
+  const renameArgs = readRenameArgs(argv);
+  if (renameArgs) {
+    const next = renameLocation(pool, renameArgs.imageId, renameArgs.name);
+    if (!next) {
+      console.error(`No location with imageId ${renameArgs.imageId} in the pool`);
+      process.exit(1);
+    }
+    writePool(next);
+    console.log(`Renamed ${renameArgs.imageId} → "${renameArgs.name}"`);
+    return;
+  }
+
+  if (argv.includes('--autoname')) {
+    const next = autonameLocations(pool);
+    const changed = next.locations.filter((l, i) => l.name !== pool.locations[i].name);
+    writePool(next);
+    console.log(`Auto-named ${changed.length} location(s): ${changed.map((l) => `${l.imageId} → ${l.name}`).join(', ') || '(none needed it)'}`);
+    return;
+  }
+
   const token = process.env.VITE_MAPILLARY_TOKEN ?? readTokenFromDotenv();
   if (!token) {
     console.error('No token. Set VITE_MAPILLARY_TOKEN in .env');
     process.exit(1);
   }
-  const pool = JSON.parse(readFileSync(POOL_PATH, 'utf8')) as LocationPool;
   const existing = new Set(pool.locations.map((l) => l.imageId));
 
   const importPath = readImportPath(process.argv.slice(2));
@@ -71,7 +111,7 @@ async function main() {
 
   const nextPool = applyCuratedLocations(pool, curated);
   if (nextPool.version !== pool.version) {
-    writeFileSync(POOL_PATH, JSON.stringify(nextPool, null, 2) + '\n');
+    writePool(nextPool);
   }
   console.log(
     `\nAdded ${curated.length} location(s). Pool now v${nextPool.version} with ${nextPool.locations.length} spots.`

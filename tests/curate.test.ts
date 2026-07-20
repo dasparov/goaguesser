@@ -6,6 +6,9 @@ import {
   applyCuratedLocations,
   parseImportJson,
   dedupeSpots,
+  renameLocation,
+  autonameLocations,
+  nearestAreaName,
   type MapillaryImage,
 } from '../scripts/curate-lib';
 import type { Location, LocationPool } from '../src/lib/locations';
@@ -212,5 +215,95 @@ describe('toLocation', () => {
   });
   it('falls back to a generic name', () => {
     expect(toLocation('123', null, goodImg(), 1).name).toBe('Somewhere in Goa');
+  });
+});
+
+describe('renameLocation', () => {
+  const loc = (imageId: string, name: string): Location => ({
+    imageId, name, lat: 15.49, lng: 73.83, version: 1,
+  });
+
+  it('changes only the named entry, keeping order, other fields, and pool version', () => {
+    const pool: LocationPool = {
+      version: 3,
+      locations: [loc('1', 'First'), loc('2', 'Second'), loc('3', 'Third')],
+    };
+
+    const result = renameLocation(pool, '2', 'Renamed Spot');
+
+    expect(result).not.toBeNull();
+    expect(result!.version).toBe(3);
+    expect(result!.locations.map((l) => l.name)).toEqual(['First', 'Renamed Spot', 'Third']);
+    expect(result!.locations.map((l) => l.imageId)).toEqual(['1', '2', '3']);
+    // untouched entries are byte-identical (same reference)
+    expect(result!.locations[0]).toBe(pool.locations[0]);
+    expect(result!.locations[2]).toBe(pool.locations[2]);
+    // the renamed entry keeps its own id/coords/version — only name differs
+    expect(result!.locations[1]).toEqual({ ...loc('2', 'Renamed Spot') });
+  });
+
+  it('does not mutate the input pool', () => {
+    const pool: LocationPool = { version: 1, locations: [loc('1', 'First')] };
+    renameLocation(pool, '1', 'Changed');
+    expect(pool.locations[0].name).toBe('First');
+  });
+
+  it('returns null when the imageId is not present', () => {
+    const pool: LocationPool = { version: 1, locations: [loc('1', 'First')] };
+    expect(renameLocation(pool, 'missing', 'X')).toBeNull();
+  });
+});
+
+describe('nearestAreaName', () => {
+  it('names the nearest of the audited area centers by haversine distance', () => {
+    expect(nearestAreaName(15.697, 73.694)).toBe('Arambol');
+    expect(nearestAreaName(15.642, 73.723)).toBe('Mandrem');
+    expect(nearestAreaName(15.614, 73.723)).toBe('Ashvem–Morjim');
+    expect(nearestAreaName(15.503, 73.781)).toBe('Candolim–Nerul');
+    expect(nearestAreaName(14.975, 74.044)).toBe('Canacona');
+  });
+
+  it('picks the closest center for a point that is not exactly on one', () => {
+    // just south of Arambol's center, still clearly closer to Arambol than Mandrem
+    expect(nearestAreaName(15.69, 73.695)).toBe('Arambol');
+  });
+});
+
+describe('autonameLocations', () => {
+  const loc = (imageId: string, name: string, lat: number, lng: number): Location => ({
+    imageId, name, lat, lng, version: 1,
+  });
+
+  it('replaces placeholder names with a coarse area name, leaving real names untouched', () => {
+    const pool: LocationPool = {
+      version: 1,
+      locations: [
+        loc('1', 'Somewhere in Goa', 15.697, 73.694), // Arambol
+        loc('2', 'Fontainhas', 15.503, 73.781), // already named — untouched
+        loc('3', '', 14.975, 74.044), // Canacona, empty name
+      ],
+    };
+
+    const result = autonameLocations(pool);
+
+    expect(result.locations.map((l) => l.name)).toEqual(['Arambol', 'Fontainhas', 'Canacona']);
+    expect(result.version).toBe(1);
+    expect(result.locations.map((l) => l.imageId)).toEqual(['1', '2', '3']);
+    // untouched entry is byte-identical (same reference)
+    expect(result.locations[1]).toBe(pool.locations[1]);
+  });
+
+  it('leaves a pool with no placeholder names completely unchanged', () => {
+    const pool: LocationPool = { version: 2, locations: [loc('1', 'Fontainhas', 15.49, 73.83)] };
+    const result = autonameLocations(pool);
+    expect(result).toEqual(pool);
+  });
+
+  it('is case-insensitive about the placeholder name', () => {
+    const pool: LocationPool = {
+      version: 1,
+      locations: [loc('1', 'somewhere in goa', 15.697, 73.694)],
+    };
+    expect(autonameLocations(pool).locations[0].name).toBe('Arambol');
   });
 });
