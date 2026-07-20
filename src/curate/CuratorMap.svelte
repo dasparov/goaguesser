@@ -74,21 +74,59 @@
     abortController = controller;
     status = 'loading';
 
+    // Mapillary rejects bbox queries over 0.010 square degrees, so a whole
+    // viewport at MIN_FETCH_ZOOM is too big for one request. Tile it into a
+    // grid of sub-cells under the cap and fetch them in parallel.
+    const MAX_CELL_AREA = 0.009;
+    const MAX_CELLS = 12;
     const b = map.getBounds();
-    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
-    const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,computed_geometry&is_pano=true&bbox=${bbox}&limit=100`;
+    const w = b.getWest();
+    const s = b.getSouth();
+    const e = b.getEast();
+    const n = b.getNorth();
+    const side = Math.sqrt(MAX_CELL_AREA);
+    const cols = Math.max(1, Math.ceil((e - w) / side));
+    const rows = Math.max(1, Math.ceil((n - s) / side));
+    if (cols * rows > MAX_CELLS) {
+      status = 'zoom-in';
+      dots = [];
+      return;
+    }
+    const cells: string[] = [];
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        cells.push(
+          [
+            w + ((e - w) * i) / cols,
+            s + ((n - s) * j) / rows,
+            w + ((e - w) * (i + 1)) / cols,
+            s + ((n - s) * (j + 1)) / rows,
+          ].join(',')
+        );
+      }
+    }
 
     try {
-      const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) throw new Error(`Mapillary ${res.status}`);
-      const json = (await res.json()) as { data?: Array<{ id: string; computed_geometry?: { coordinates: [number, number] } }> };
-      const next: CuratorDot[] = (json.data ?? [])
-        .filter((d) => Array.isArray(d.computed_geometry?.coordinates))
-        .map((d) => ({
+      const results = await Promise.all(
+        cells.map(async (bbox) => {
+          const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,computed_geometry&is_pano=true&bbox=${bbox}&limit=100`;
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) throw new Error(`Mapillary ${res.status}`);
+          const json = (await res.json()) as { data?: Array<{ id: string; computed_geometry?: { coordinates: [number, number] } }> };
+          return json.data ?? [];
+        })
+      );
+      const seen = new Set<string>();
+      const next: CuratorDot[] = [];
+      for (const d of results.flat()) {
+        if (seen.has(d.id) || !Array.isArray(d.computed_geometry?.coordinates)) continue;
+        seen.add(d.id);
+        next.push({
           id: d.id,
           lng: d.computed_geometry!.coordinates[0],
           lat: d.computed_geometry!.coordinates[1],
-        }));
+        });
+      }
       dots = next;
       status = 'ready';
     } catch (e) {
