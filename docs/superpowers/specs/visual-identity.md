@@ -1,13 +1,13 @@
 # Backyard: Goa — Visual Identity (locked)
 
-**Status:** v2 (warm), directed by Kapil 2026-07-20: "warm and slick". Supersedes the cool porcelain v1 palette; type, layout and marker semantics unchanged.
+**Status:** v2.1 (warm, flat, dark-default), directed by Kapil 2026-07-20. Supersedes v1/v2; type, layout and marker semantics unchanged.
 **Binding on:** Tasks 8, 9, 10 (`PanoViewer`, `GuessMap`, `Hud`, `GameFooter`, `Summary`, `App`, and the canvas share card in `card.ts`).
 
 Use these exact values. Do not substitute Tailwind's default palette entries.
 
 ## Palette
 
-Light theme (default):
+Light theme (the *override* — see Dark by default below):
 
 | Token | Hex | Used for |
 |---|---|---|
@@ -23,7 +23,7 @@ Light theme (default):
 | `--emerald-solid` | `#1B7A4E` | the actual-answer marker |
 | `--amber` | `#C8801A` | the player's guess marker |
 
-Dark theme (`prefers-color-scheme: dark` and `:root[data-theme="dark"]`):
+Dark theme (**the default** — on `:root` itself). Warm terracotta-dark, never pure black:
 
 | Token | Hex |
 |---|---|
@@ -87,6 +87,29 @@ The share card is NOT a dark gradient scorecard. It is a **printed survey chart 
 - If others are on the board: up to three standings rows in mono (`1. Ana 21,340 🏆`), player's own row in `--azulejo`.
 - Footer: `same five spots — your turn` in `--ink-faint`.
 - Card height computed from content (base 1080×1080; +56px per standings row beyond one).
+
+
+## Dark by default (v2.1)
+
+The app ships dark. `:root` carries the warm dark tokens; the light palette applies only under `@media (prefers-color-scheme: light)` and `:root[data-theme="light"]`. The ground is `#1B120A` — warm espresso-terracotta, never `#000`.
+
+## Iconography — no emoji in the UI (v2.1)
+
+Emoji appear **only** in the plain-text share message (WhatsApp is a text medium; the emoji bar stays there — `buildShareText` is unchanged). Everywhere pixels are ours, glyphs are drawn:
+
+- **Trophy** — a flat geometric SVG cup (solid `--azulejo` fill, no outline, no gradient): rectangular bowl with two small side handles, stem, wide base. One size, drawn once, reused (Summary header, standings leader row). On the canvas card the same shape is drawn with paths — never the 🏆 glyph.
+- **Sound toggle** — flat stroke SVG speaker, `--ink-soft`, 1.5px strokes; muted state adds a diagonal line, no color change.
+- **The Summary emoji bar is removed, not replaced.** The target chart and the per-round distances already tell that story; duplicating it in dots is decoration. Less, but better.
+- Outcome copy loses its emoji: "You beat Ana by 170", "It's a tie" — words, set well, no 🤝/😤.
+
+## Delight (v2.1) — one orchestrated moment
+
+All animation is CSS/SVG (no GIFs: heavier, not theme-aware, scale badly). Everything respects `prefers-reduced-motion` (static end-state).
+
+- **The trophy is the moment.** On Summary mount it plays once: scale .7→1 with a small overshoot, opacity 0→1 (.45s cubic-bezier(.2,.9,.3,1.2)), then a single settle-tilt −6°→0 (.25s). No loop, no confetti.
+- Standings rows fade/slide in 8px, staggered 50ms, after the trophy (delay .3s).
+- The player's own row underlines itself: a 1px `--azulejo` line scaling from 0→100% width (.3s, delay .6s).
+- Nothing else moves on that screen. The reveal keeps its existing chip stagger; buttons keep their press states. That is the complete animation inventory.
 
 ## Accuracy (derived, zero URL bytes)
 
