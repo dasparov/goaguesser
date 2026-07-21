@@ -6,7 +6,7 @@
   import Summary from './components/Summary.svelte';
   import ViewToggle from './components/ViewToggle.svelte';
   import PixelPin from './components/PixelPin.svelte';
-  import { dealGame, encodeChallenge, randomSeed, type ChallengeCode } from './lib/seed';
+  import { dealGame, encodeChallenge, dailySeed, type ChallengeCode } from './lib/seed';
   import { parseGameParams, type Player } from './lib/share';
   import { createGame } from './lib/game.svelte';
   import { playPin, playReveal } from './lib/sound';
@@ -26,7 +26,10 @@
   const parsed = parseGameParams(window.location.search, city.rounds);
   let field: Player[] = $state(parsed.field);
   let deal = parsed.code ? dealGame(pool, parsed.code, city.rounds, city.backups) : null;
-  const code: ChallengeCode = deal ? parsed.code! : { seed: randomSeed(), poolVersion: pool.version };
+  // Bare link → today's daily challenge (rotates at local midnight, one per
+  // mode). A shared `?c=` link overrides this with its own fixed seed.
+  const daySalt = [...city.id].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const code: ChallengeCode = deal ? parsed.code! : { seed: dailySeed(daySalt), poolVersion: pool.version };
   if (!deal) {
     field = []; // stale/malformed link: play a plain new game instead
     deal = dealGame(pool, code, city.rounds, city.backups);

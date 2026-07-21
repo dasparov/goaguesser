@@ -18,6 +18,20 @@ export function randomSeed(): number {
   return Math.floor(Math.random() * 0xffffffff) >>> 0;
 }
 
+/**
+ * A deterministic seed for "today" — the daily rotating challenge. Everyone
+ * playing the same local calendar day gets the same seed (hence the same
+ * spots), and it rotates at local midnight. `salt` keeps each mode's daily
+ * distinct, so India / Goa / Delhi each get their own challenge per day.
+ */
+export function dailySeed(salt: number, now: Date = new Date()): number {
+  const day = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 86400000);
+  let h = (day ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
 export interface ChallengeCode {
   seed: number;
   poolVersion: number;

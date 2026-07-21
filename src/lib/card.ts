@@ -278,10 +278,10 @@ export async function renderShareCard(opts: {
     }
   }
 
-  // Footer: pinned near the bottom of the (content-sized) canvas.
-  ctx.fillStyle = CARD_INK_FAINT;
-  ctx.font = `24px ${MONO_FONT}`;
-  ctx.fillText(`same ${roundCount} spots — your turn`, MARGIN, height - 50);
+  // Footer invite — full-ink serif at a legible size (a play on IMSpatial).
+  ctx.fillStyle = CARD_INK;
+  ctx.font = `italic 34px ${DISPLAY_FONT}`;
+  ctx.fillText("Think you're spatial? Show me!", MARGIN, height - 46);
 
   return new Promise((resolve) => c.toBlob((b) => resolve(b!), 'image/png'));
 }

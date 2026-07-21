@@ -90,7 +90,10 @@ const CITIES: Record<string, City> = {
   },
 };
 
-const DEFAULT_CITY = 'india';
+// Delhi is the headline mode for now — India's national pool isn't ready yet
+// (Mapillary coverage + rate-limiting), so the bare link opens Delhi. India and
+// Goa remain reachable via ?city= but aren't the default.
+const DEFAULT_CITY = 'delhi';
 
 export function activeCity(search: string = window.location.search): City {
   const id = new URLSearchParams(search).get('city')?.toLowerCase() ?? '';

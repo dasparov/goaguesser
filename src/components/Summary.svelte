@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RoundResult } from '../lib/game.svelte';
-  import type { ChallengeCode } from '../lib/seed';
+  import { encodeChallenge, randomSeed, type ChallengeCode } from '../lib/seed';
   import {
     buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints,
     makePlayer, addToField, standings, type Player,
@@ -163,7 +163,12 @@
   }
 
   function playAgain() {
-    window.location.href = window.location.origin + window.location.pathname; // bare URL → fresh seed
+    // A random bonus game — today's daily lives on the bare link, so a fresh
+    // random seed here lets players keep going. Preserve the city.
+    const url = new URL(window.location.origin + window.location.pathname + window.location.search);
+    url.searchParams.set('c', encodeChallenge({ seed: randomSeed(), poolVersion: code.poolVersion }));
+    url.searchParams.delete('p');
+    window.location.href = url.toString();
   }
 </script>
 
