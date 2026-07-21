@@ -2,79 +2,33 @@
 @import 'leaflet/dist/leaflet.css';
 
 @theme {
-  /* Font tokens — docs/superpowers/specs/visual-identity.md.
-     Declared in @theme (not plain :root) so Tailwind v4's compiler
-     registers them as theme values: the `font-mono` utility (used
-     throughout for scores/distances/round counters) resolves to this
-     exact stack instead of Tailwind's built-in default, and the
-     display/UI faces are theme-registered the same way. */
-  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Iowan Old Style', Georgia, serif;
-  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Type — 1-bit / e-ink aesthetic (see the reference screens): a classic
+     old-style serif for everything, so headings, body and labels all share
+     one printed voice. `font-mono` is kept for tabular figures (scoreboards,
+     round counters, distances) where column alignment matters. */
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  --font-body: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 :root {
-  /* Dark theme (default) — docs/superpowers/specs/visual-identity.md (v2.1, "Dark by
-     default"). Warm terracotta-dark ground, never pure black. */
-  color-scheme: dark light;
-  --porcelain: #1B120A;
-  --panel: #261A0E;
-  --ink: #F3EADA;
-  --ink-soft: #C4B49D;
-  --ink-faint: #8A7A63;
-  --rule: #3B2C1C;
-  --azulejo: #86AEE3;
-  --azulejo-pale: #22314E;
-  --laterite: #E06A44;
-  --emerald-solid: #46B584;
-  --amber: #E0A340;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --porcelain: #F5EDDF;
-    --panel: #FDF9F0;
-    --ink: #2B1F16;
-    --ink-soft: #6B5847;
-    --ink-faint: #A08D77;
-    --rule: #E6D9C4;
-    --azulejo: #1F4E8C;
-    --azulejo-pale: #E8EDF5;
-    --laterite: #B84A2B;
-    --emerald-solid: #1B7A4E;
-    --amber: #C8801A;
-  }
-}
-
-/* Explicit theme override (e.g. a future in-app toggle) wins over the OS preference either way. */
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --porcelain: #1B120A;
-  --panel: #261A0E;
-  --ink: #F3EADA;
-  --ink-soft: #C4B49D;
-  --ink-faint: #8A7A63;
-  --rule: #3B2C1C;
-  --azulejo: #86AEE3;
-  --azulejo-pale: #22314E;
-  --laterite: #E06A44;
-  --emerald-solid: #46B584;
-  --amber: #E0A340;
-}
-
-:root[data-theme='light'] {
+  /* One look — a monochrome sage/charcoal "Game Boy e-ink" palette (cloned
+     from the reference UI). Muted sage ground, warm charcoal ink and hairlines,
+     a single brick-red accent. `--azulejo` (the old brand blue) now maps to ink
+     so every heading/score/primary fill reads as charcoal — the app is
+     deliberately monochrome apart from the one red accent. */
   color-scheme: light;
-  --porcelain: #F5EDDF;
-  --panel: #FDF9F0;
-  --ink: #2B1F16;
-  --ink-soft: #6B5847;
-  --ink-faint: #A08D77;
-  --rule: #E6D9C4;
-  --azulejo: #1F4E8C;
-  --azulejo-pale: #E8EDF5;
-  --laterite: #B84A2B;
-  --emerald-solid: #1B7A4E;
-  --amber: #C8801A;
+  --porcelain: #A9B0A1; /* page ground (sage) */
+  --panel: #B4BAAC;     /* cards / HUD / bars — a touch lighter than the ground */
+  --ink: #2B2820;       /* text, fills, borders */
+  --ink-soft: #4C473C;
+  --ink-faint: #6E695C;
+  --rule: #3A362D;      /* drawn hairline borders */
+  --azulejo: #2B2820;   /* headings + primary fill = ink (monochrome) */
+  --azulejo-pale: #C4C9BC; /* selected / highlighted row fill */
+  --laterite: #9E4A40;  /* the lone accent — brick red */
+  --emerald-solid: #3C7A54; /* map answer marker (functional, on the map layer) */
+  --amber: #8A6A2E;         /* map guess marker (functional, on the map layer) */
 }
 
 body {
@@ -83,44 +37,46 @@ body {
   color: var(--ink);
 }
 
-/* Slickness rules (v2 — FLAT): docs/superpowers/specs/visual-identity.md.
-   Pills, solid fills, no gradients, no shadows — separation comes from the
-   sand/shell two-tone and 1px hairlines instead. */
+/* Buttons — bordered "drawn" rectangles (cloned from the reference): light
+   sage fill with a dark hairline, filled dark charcoal for the primary action.
+   Rounded rectangles, not pills; separation comes from the 1.5px ink border. */
 .btn-primary {
-  border-radius: 999px;
-  background-color: var(--azulejo);
-  color: #fff;
+  border-radius: 8px;
+  background-color: var(--azulejo); /* charcoal */
+  color: #ECEEE6;
+  border: 1.5px solid var(--ink);
   transition: transform .06s ease, background-color .12s ease;
 }
 .btn-primary:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--azulejo) 94%, black);
+  background-color: color-mix(in srgb, var(--azulejo) 88%, black);
 }
 .btn-primary:active:not(:disabled) {
   transform: translateY(1px);
 }
 .btn-primary:disabled {
-  background-color: var(--rule);
+  background-color: transparent;
   color: var(--ink-faint);
+  border-color: var(--rule);
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  border-radius: 999px;
+  border-radius: 8px;
   background-color: transparent;
-  border: 1px solid var(--rule);
-  color: var(--ink-soft);
+  border: 1.5px solid var(--rule);
+  color: var(--ink);
   transition: transform .06s ease, background-color .12s ease, border-color .12s ease;
 }
 .btn-secondary:hover {
-  border-color: var(--ink-faint);
+  background-color: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 .btn-secondary:active {
   transform: translateY(1px);
 }
 
 .card-flat {
-  border-radius: 10px;
-  border: 1px solid var(--rule);
+  border-radius: 8px;
+  border: 1.5px solid var(--rule);
   background: var(--panel);
 }
 
