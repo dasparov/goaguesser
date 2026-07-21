@@ -1,4 +1,4 @@
-import { MAX_GAME_POINTS } from './score';
+import { MAX_GAME_POINTS, type DistanceScale } from './score';
 import { formatPoints, ordinal } from './share';
 
 // The share card is a fixed "printed survey chart on sand" — it always uses
@@ -26,21 +26,26 @@ const STANDINGS_VISIBLE = 3;
 
 // Ring / shot radial scale: miss-distance thresholds mapped to fractions of
 // the chart's outer radius R, piecewise-linear between stops.
-const RADIUS_STOPS: Array<[m: number, frac: number]> = [
-  [0, 0],
-  [25, 0.06],
-  [100, 0.25],
-  [1000, 0.5],
-  [5000, 0.75],
-  [15000, 1],
-];
+// The four ring fractions of the chart radius, inner→outer.
+const RING_FRACS = [0.25, 0.5, 0.75, 1];
 
-function scaledRadius(m: number, R: number): number {
+// Miss-distance → radius-fraction breakpoints for a mode's scale: the
+// full-points zone plus the four ring distances at their fixed fractions.
+function radiusStopsFor(scale: DistanceScale): Array<[number, number]> {
+  return [
+    [0, 0],
+    [scale.fullWithinM, 0.06],
+    ...scale.ringStops.map((s, i): [number, number] => [s[0], RING_FRACS[i]]),
+  ];
+}
+
+function scaledRadius(m: number, R: number, stops: Array<[number, number]>): number {
   if (m <= 0) return 0;
-  if (m >= 15000) return R;
-  for (let i = 1; i < RADIUS_STOPS.length; i++) {
-    const [m0, f0] = RADIUS_STOPS[i - 1];
-    const [m1, f1] = RADIUS_STOPS[i];
+  const last = stops[stops.length - 1][0];
+  if (m >= last) return R;
+  for (let i = 1; i < stops.length; i++) {
+    const [m0, f0] = stops[i - 1];
+    const [m1, f1] = stops[i];
     if (m <= m1) {
       const t = (m - m0) / (m1 - m0);
       return (f0 + t * (f1 - f0)) * R;
@@ -142,10 +147,13 @@ export async function renderShareCard(opts: {
   maxGamePoints?: number;
   position: number;
   fieldSize: number;
+  /** The mode's distance scale — drives the chart rings and shot radii. */
+  scale: DistanceScale;
   standings: ShareCardStandingRow[];
 }): Promise<Blob> {
   const roundCount = opts.distances.length;
   const maxPoints = opts.maxGamePoints ?? MAX_GAME_POINTS;
+  const radiusStops = radiusStopsFor(opts.scale);
   const rows = opts.standings.slice(0, STANDINGS_VISIBLE);
   const height = BASE_H + Math.max(0, rows.length - 1) * STANDINGS_ROW_H;
 
@@ -181,15 +189,13 @@ export async function renderShareCard(opts: {
   const cy = 340;
   // Ink concentric rings — dark on the sage card, a clear contrast to the
   // brick-red ✕ shot markers. Inner rings strongest, fading outward.
-  const RING_STOPS: Array<[m: number, label: string, alpha: number]> = [
-    [100, '100 m', 0.95],
-    [1000, '1 km', 0.75],
-    [5000, '5 km', 0.6],
-    [15000, '15 km', 0.45],
-  ];
+  const ringAlpha = [0.95, 0.75, 0.6, 0.45];
+  const RING_STOPS = opts.scale.ringStops.map(
+    ([m, label], i): [number, string, number] => [m, label, ringAlpha[i]],
+  );
   const labelAngle = (-45 * Math.PI) / 180;
   for (const [m, label, alpha] of RING_STOPS) {
-    const r = scaledRadius(m, R);
+    const r = scaledRadius(m, R, radiusStops);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.strokeStyle = `rgba(43, 40, 32, ${alpha})`; // ink rings, dark on sage
@@ -205,12 +211,12 @@ export async function renderShareCard(opts: {
   // same card — i*72° − 90° plus a fixed 20° offset.
   for (let i = 0; i < opts.distances.length; i++) {
     const m = opts.distances[i];
-    const r = scaledRadius(m, R);
+    const r = scaledRadius(m, R, radiusStops);
     const angle = ((i * 72 - 90 + 20) * Math.PI) / 180;
     const sx = cx + r * Math.cos(angle);
     const sy = cy + r * Math.sin(angle);
 
-    if (m <= 100) {
+    if (m <= opts.scale.ringStops[0][0]) {
       ctx.beginPath();
       ctx.arc(sx, sy, 16, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(158, 74, 64, 0.28)'; // brick-red halo on a near-bullseye

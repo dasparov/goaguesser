@@ -1,5 +1,5 @@
 import { decodeChallenge, encodeChallenge, ROUNDS, type ChallengeCode } from './seed';
-import { emojiForDistance, MAX_GAME_POINTS, MAX_POINTS } from './score';
+import { emojiForDistance, MAX_GAME_POINTS, MAX_POINTS, CITY_SCALE, type DistanceScale } from './score';
 
 const SCORE_CHARS = 3; // base36: 'zzz' = 46655 ≥ 5000
 const FIELD_SEP = '~'; // unreserved in RFC 3986, so it survives a query string intact
@@ -130,8 +130,8 @@ export function rankForScore(total: number, ranks: RankTable = RANKS): string {
   return ranks.find(([min]) => total >= min)![1];
 }
 
-export function emojiBar(distances: number[]): string {
-  return distances.map(emojiForDistance).join('');
+export function emojiBar(distances: number[], scale: DistanceScale = CITY_SCALE): string {
+  return distances.map((d) => emojiForDistance(d, scale)).join('');
 }
 
 export function ordinal(n: number): string {

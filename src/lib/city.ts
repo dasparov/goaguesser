@@ -1,19 +1,20 @@
 import goaJson from '../data/goa.json';
 import delhiJson from '../data/delhi.json';
+import indiaJson from '../data/india.json';
 import type { LocationPool } from './locations';
-import { MAX_POINTS } from './score';
+import { MAX_POINTS, CITY_SCALE, INDIA_SCALE, type DistanceScale } from './score';
 import { RANKS as GOA_RANKS, type RankTable } from './share';
 
 /**
- * IMSpatial ships as one build serving several cities. The active city is
- * chosen at runtime from the `?city=` query param (default Goa), and carries
- * everything that differs between modes: the panorama pool, where the guess
- * map opens, how many rounds a game runs, whether a per-round timer applies,
- * and the flavour text (name + score ranks). Everything else — scoring,
- * sharing, the whole UI — is city-agnostic and reads from here.
+ * IMSpatial ships as one build serving several modes. The active mode is chosen
+ * at runtime from the `?city=` query param (default India), and carries
+ * everything that differs: the panorama pool, where the guess map opens, how
+ * many rounds a game runs, the per-round timer, the flavour text (name + score
+ * ranks), and the distance scale (city modes score within a city; India scores
+ * across the whole country). Everything else is mode-agnostic and reads here.
  */
 export interface City {
-  id: 'goa' | 'delhi';
+  id: 'goa' | 'delhi' | 'india';
   name: string;
   center: [number, number];
   zoom: number;
@@ -24,6 +25,7 @@ export interface City {
   timerSec: number | null;
   maxGamePoints: number;
   ranks: RankTable;
+  scale: DistanceScale;
 }
 
 export const APP_NAME = 'IMSpatial';
@@ -37,7 +39,29 @@ const DELHI_RANKS: RankTable = [
   [0, 'Lost in Transit'],
 ];
 
+// India ranks — a whole-country traveller ladder, tuned to a 5-round max (25,000).
+const INDIA_RANKS: RankTable = [
+  [23001, 'Bharat Yatri'],
+  [18001, 'Seasoned Wayfarer'],
+  [12001, 'Cross-Country Rambler'],
+  [6001, 'Weekend Wanderer'],
+  [0, 'Armchair Tourist'],
+];
+
 const CITIES: Record<string, City> = {
+  india: {
+    id: 'india',
+    name: 'India',
+    center: [22.5, 79.0],
+    zoom: 5,
+    pool: indiaJson as LocationPool,
+    rounds: 5,
+    backups: 3,
+    timerSec: 90,
+    maxGamePoints: 5 * MAX_POINTS,
+    ranks: INDIA_RANKS,
+    scale: INDIA_SCALE,
+  },
   goa: {
     id: 'goa',
     name: 'Goa',
@@ -49,6 +73,7 @@ const CITIES: Record<string, City> = {
     timerSec: null,
     maxGamePoints: 5 * MAX_POINTS,
     ranks: GOA_RANKS,
+    scale: CITY_SCALE,
   },
   delhi: {
     id: 'delhi',
@@ -61,10 +86,11 @@ const CITIES: Record<string, City> = {
     timerSec: 60,
     maxGamePoints: 3 * MAX_POINTS,
     ranks: DELHI_RANKS,
+    scale: CITY_SCALE,
   },
 };
 
-const DEFAULT_CITY = 'goa';
+const DEFAULT_CITY = 'india';
 
 export function activeCity(search: string = window.location.search): City {
   const id = new URLSearchParams(search).get('city')?.toLowerCase() ?? '';

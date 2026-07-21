@@ -38,7 +38,7 @@
     history.replaceState(null, '', url);
   }
 
-  const game = deal ? createGame(deal) : null;
+  const game = deal ? createGame(deal, city.scale) : null;
 
   const lastResult = $derived(
     game && game.results.length > 0 ? game.results[game.results.length - 1] : null

@@ -22,7 +22,7 @@
   } = $props();
 
   const rank = $derived(rankForScore(totalScore, city.ranks));
-  const bar = $derived(emojiBar(results.map((r) => r.distanceM)));
+  const bar = $derived(emojiBar(results.map((r) => r.distanceM), city.scale));
   const alone = $derived(field.length === 0);
 
   // The pre-existing leader of the incoming field (before this run is added)
@@ -61,7 +61,7 @@
   );
   function avgMissFor(player: Player): number {
     if (player === me) return myAvgMiss;
-    return player.scores.reduce((sum, s) => sum + missForPoints(s), 0) / player.scores.length;
+    return player.scores.reduce((sum, s) => sum + missForPoints(s, city.scale), 0) / player.scores.length;
   }
   // "Most accurate" is only interesting once there's someone to compare
   // against — often a different person from the points leader.
@@ -96,7 +96,7 @@
         const blob = await renderShareCard({
           title,
           distances: results.map((r) => r.distanceM),
-          rank, total: totalScore, maxGamePoints: city.maxGamePoints,
+          rank, total: totalScore, maxGamePoints: city.maxGamePoints, scale: city.scale,
           position: myPosition, fieldSize: finalField.length,
           standings: finalBoard.map((s) => ({
             position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,

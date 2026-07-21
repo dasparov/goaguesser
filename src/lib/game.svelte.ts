@@ -1,12 +1,8 @@
 import type { Location } from './locations';
 import type { Deal } from './seed';
-import { haversineM, pointsForDistance } from './score';
+import { haversineM, pointsForDistance, type DistanceScale } from './score';
 
 export type Phase = 'playing' | 'scored' | 'summary' | 'error';
-
-// Distance recorded for a round the player let time out without dropping a pin
-// — the score module's zero-points threshold, so it reads as a full miss.
-const TIMEOUT_MISS_M = 15000;
 
 export interface RoundResult {
   location: Location;
@@ -16,7 +12,7 @@ export interface RoundResult {
   points: number;
 }
 
-export function createGame(deal: Deal) {
+export function createGame(deal: Deal, scale: DistanceScale) {
   const rounds = $state([...deal.rounds]);
   const backups = $state([...deal.backups]);
   let roundIndex = $state(0);
@@ -35,14 +31,14 @@ export function createGame(deal: Deal) {
         guessLat: guess.lat,
         guessLng: guess.lng,
         distanceM,
-        points: pointsForDistance(distanceM),
+        points: pointsForDistance(distanceM, scale),
       });
     } else {
       results.push({
         location: loc,
         guessLat: null,
         guessLng: null,
-        distanceM: TIMEOUT_MISS_M,
+        distanceM: scale.zeroAtM,
         points: 0,
       });
     }
