@@ -134,7 +134,7 @@
           token={TOKEN}
           onloaderror={() => game.substituteCurrent()}
         />
-        <Hud {title} rounds={city.rounds} round={game.roundIndex} totalScore={game.totalScore} {field} />
+        <Hud {title} rounds={city.rounds} round={game.roundIndex} totalScore={game.totalScore} maxGamePoints={city.maxGamePoints} {field} />
       </section>
       <section
         class="w-full min-w-0 min-h-0 relative overflow-hidden pane-flex"

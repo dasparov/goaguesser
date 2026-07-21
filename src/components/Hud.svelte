@@ -4,11 +4,12 @@
   import { isSoundOn, setSoundOn } from '../lib/sound';
   import Trophy from './Trophy.svelte';
 
-  let { title, rounds, round, totalScore, field }: {
+  let { title, rounds, round, totalScore, maxGamePoints, field }: {
     title: string;
     rounds: number;
     round: number;
     totalScore: number;
+    maxGamePoints: number;
     field: Player[];
   } = $props();
 
@@ -46,7 +47,7 @@
   <div class="h-4 w-px bg-[var(--rule)]"></div>
   <span class="text-xs font-mono tabular-nums text-[var(--ink-faint)]">Round {round + 1}/{rounds}</span>
   <div class="h-4 w-px bg-[var(--rule)]"></div>
-  <span class="text-xs font-mono tabular-nums text-[var(--ink)]">You {formatPoints(totalScore)}</span>
+  <span class="text-xs font-mono tabular-nums text-[var(--ink)]">You {formatPoints(totalScore)} / {formatPoints(maxGamePoints)}</span>
   {#if leader}
     <span class="text-xs font-mono tabular-nums text-[var(--azulejo)] flex items-center gap-1 min-w-0">
       <span class="truncate max-w-[6rem]">{leader.name ?? 'Leader'}</span>
