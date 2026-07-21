@@ -3,6 +3,7 @@
   import L from 'leaflet';
   import type { RoundResult } from '../lib/game.svelte';
   import { activeCity } from '../lib/city';
+  import { loadMapTheme, saveMapTheme, TILE_URL } from '../lib/mapTheme';
 
   let { interactive, roundIndex, result, onpin }: {
     interactive: boolean;
@@ -32,6 +33,8 @@
   let guessMarker: L.Marker | null = null;
   let actualMarker: L.Marker | null = null;
   let line: L.Polyline | null = null;
+  let tiles: L.TileLayer | undefined;
+  let mapTheme = $state(loadMapTheme());
 
   const pinIcon = (bg: string) =>
     L.divIcon({
@@ -45,7 +48,7 @@
     map = L.map(el, { center: CENTER, zoom: ZOOM });
     // Labeled tiles by owner decision after the first playtest: recognising a
     // place from the panorama is the skill; finding it on the map shouldn't be.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    tiles = L.tileLayer(TILE_URL[mapTheme], {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
@@ -101,6 +104,12 @@
     }
   });
 
+  // Swap the basemap when the player toggles light/dark, and remember it.
+  $effect(() => {
+    tiles?.setUrl(TILE_URL[mapTheme]);
+    saveMapTheme(mapTheme);
+  });
+
   onDestroy(() => map?.remove());
 
   // Imperative resize hook for the view-mode toggle (App.svelte) — called via
@@ -113,7 +122,15 @@
   }
 </script>
 
-<div bind:this={el} class="w-full h-full"></div>
+<div class="relative w-full h-full">
+  <div bind:this={el} class="w-full h-full" class:map-dark={mapTheme === 'dark'}></div>
+  <button
+    onclick={() => (mapTheme = mapTheme === 'dark' ? 'light' : 'dark')}
+    title="Toggle map theme"
+    class="absolute top-2 right-2 z-[1000] bg-[var(--panel)] border border-[var(--rule)] rounded-[4px] px-2 py-1 text-[10px] font-mono uppercase tracking-wide text-[var(--ink-soft)]">
+    {mapTheme === 'dark' ? 'Light map' : 'Dark map'}
+  </button>
+</div>
 
 <style>
   /* Flat, hairline-bordered tooltip matching card/panel tokens (docs/superpowers/
@@ -133,5 +150,12 @@
   }
   :global(.imspatial-reveal-label::before) {
     display: none;
+  }
+
+  /* Lift the dark basemap so roads and labels stay legible (the raw CARTO
+     dark tiles are very dim). Only the tile imagery is filtered — markers
+     live in a separate overlay pane and keep their true colours. */
+  :global(.map-dark .leaflet-tile-pane) {
+    filter: brightness(1.32) contrast(1.06);
   }
 </style>

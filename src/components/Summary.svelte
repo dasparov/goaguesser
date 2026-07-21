@@ -5,7 +5,7 @@
     buildShareText, buildShareUrl, emojiBar, rankForScore, formatPoints,
     makePlayer, addToField, standings, type Player,
   } from '../lib/share';
-  import { formatDistance, MAX_GAME_POINTS, missForPoints } from '../lib/score';
+  import { formatDistance, missForPoints } from '../lib/score';
   import { renderShareCard } from '../lib/card';
   import { activeCity, cityTitle } from '../lib/city';
   import Trophy from './Trophy.svelte';
@@ -41,6 +41,7 @@
 
   let playerName = $state(localStorage.getItem('imspatial-name') ?? '');
   let copied = $state(false);
+  let linkCopied = $state(false);
   let sharing = $state(false);
   let copyError = $state(false);
   let fallbackUrl = $state<string | null>(null);
@@ -126,6 +127,40 @@
     }
   }
 
+  // Desktop browsers (notably Mac Chrome) don't show a native share sheet, so
+  // offer explicit WhatsApp + copy-link options that don't depend on it. Both
+  // rebuild the same URL/text as the primary share and persist the name.
+  function computeUrlText() {
+    localStorage.setItem('imspatial-name', playerName);
+    const finalField = addToField(field, me);
+    const myPosition = standings(finalField).find((b) => b.player === me)?.position ?? finalField.length;
+    const url = buildShareUrl(
+      window.location.origin + window.location.pathname + window.location.search, code, finalField,
+    );
+    const text = buildShareText({
+      title, rank, bar, total: totalScore, maxGamePoints: city.maxGamePoints, url,
+      position: myPosition, fieldSize: finalField.length,
+    });
+    return { url, text };
+  }
+
+  function shareWhatsApp() {
+    const { text } = computeUrlText();
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  }
+
+  async function copyLink() {
+    const { url } = computeUrlText();
+    try {
+      await navigator.clipboard.writeText(url);
+      linkCopied = true;
+      setTimeout(() => (linkCopied = false), 2000);
+    } catch {
+      copyError = true;
+      fallbackUrl = url;
+    }
+  }
+
   function playAgain() {
     window.location.href = window.location.origin + window.location.pathname; // bare URL → fresh seed
   }
@@ -141,7 +176,7 @@
 
   <div class="card-flat px-10 py-5 text-center">
     <div class="text-5xl font-black font-mono tabular-nums text-[var(--azulejo)]">{formatPoints(totalScore)}</div>
-    <div class="text-xs text-[var(--ink-faint)] uppercase tracking-widest mt-1 font-mono tabular-nums">/ {formatPoints(MAX_GAME_POINTS)}</div>
+    <div class="text-xs text-[var(--ink-faint)] uppercase tracking-widest mt-1 font-mono tabular-nums">/ {formatPoints(city.maxGamePoints)}</div>
     <div class="text-[var(--ink)] font-bold mt-2 italic" style="font-family: var(--font-display)">{rank}</div>
     <div class="text-xs font-mono tabular-nums text-[var(--ink-soft)] mt-2">avg miss {formatDistance(myAvgMiss)}</div>
   </div>
@@ -214,6 +249,17 @@
     </button>
     <button onclick={playAgain} class="btn-secondary px-6 py-2.5 font-bold uppercase text-sm">
       Play again
+    </button>
+  </div>
+
+  <!-- Explicit share options — always available, don't rely on the native
+       share sheet (which desktop Chrome/Safari on Mac don't show). -->
+  <div class="flex items-center gap-3 -mt-3 mb-4">
+    <button onclick={shareWhatsApp} class="btn-secondary px-4 py-2 font-bold uppercase text-xs">
+      WhatsApp
+    </button>
+    <button onclick={copyLink} class="btn-secondary px-4 py-2 font-bold uppercase text-xs">
+      {linkCopied ? 'Link copied!' : 'Copy link'}
     </button>
   </div>
 
