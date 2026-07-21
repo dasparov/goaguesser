@@ -9,6 +9,7 @@
   import { renderShareCard } from '../lib/card';
   import { activeCity, cityTitle } from '../lib/city';
   import Trophy from './Trophy.svelte';
+  import PixelPin from './PixelPin.svelte';
 
   const city = activeCity();
   const title = cityTitle(city);
@@ -166,9 +167,9 @@
   }
 </script>
 
-<main class="w-full h-screen overflow-y-auto bg-[var(--porcelain)] text-[var(--ink)] flex flex-col items-center p-6 gap-5">
-  <div class="trophy-moment text-[var(--azulejo)] mt-4" aria-hidden="true">
-    <Trophy size={40} />
+<main class="w-full h-screen overflow-y-auto text-[var(--ink)] flex flex-col items-center p-6 gap-5">
+  <div class="trophy-moment mt-4">
+    <PixelPin size={80} />
   </div>
   <h1 class="text-3xl font-black text-[var(--azulejo)] -mt-2" style="font-family: var(--font-display)">
     Challenge Complete

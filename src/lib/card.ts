@@ -4,12 +4,12 @@ import { formatPoints, ordinal } from './share';
 // The share card is a fixed "printed survey chart on sand" — it always uses
 // the warm light palette regardless of the app's active theme (docs/superpowers/
 // specs/visual-identity.md, "Signature: the shot-group share card").
-const CARD_SAND = '#1B120A';
-const CARD_INK = '#F3EADA';
-const CARD_INK_SOFT = '#C4B49D';
-const CARD_INK_FAINT = '#8A7A63';
-const CARD_AZULEJO = '#86AEE3';
-const CARD_LATERITE = '#E06A44';
+const CARD_SAND = '#A9B0A1';
+const CARD_INK = '#2B2820';
+const CARD_INK_SOFT = '#4C473C';
+const CARD_INK_FAINT = '#6E695C';
+const CARD_AZULEJO = '#2B2820';
+const CARD_LATERITE = '#9E4A40';
 const DISPLAY_FONT = '"Palatino Linotype", "Book Antiqua", Palatino, "Iowan Old Style", Georgia, serif';
 const MONO_FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
@@ -157,7 +157,13 @@ export async function renderShareCard(opts: {
   ctx.fillStyle = CARD_SAND;
   ctx.fillRect(0, 0, W, height);
 
-  // Header: mono caps, letterspaced — wordmark left, round count right.
+  // Drawn hairline border, matching the app's bordered cards.
+  ctx.strokeStyle = CARD_INK;
+  ctx.lineWidth = 3;
+  roundRectPath(ctx, 8, 8, W - 16, height - 16, 16);
+  ctx.stroke();
+
+  // Header: serif-mono caps, letterspaced — wordmark left, round count right.
   ctx.fillStyle = CARD_INK_FAINT;
   ctx.font = `bold 24px ${MONO_FONT}`;
   fillTextSpaced(ctx, opts.title.toUpperCase(), MARGIN, 74, 3);
@@ -173,9 +179,8 @@ export async function renderShareCard(opts: {
   const R = 220;
   const cx = W / 2;
   const cy = 340;
-  // Bright periwinkle rings (CARD_AZULEJO, rgb 134/174/227) — legible on the
-  // dark card and a clear contrast to the orange ✕ shot markers. Inner rings
-  // brightest, fading outward so the target still reads as concentric.
+  // Ink concentric rings — dark on the sage card, a clear contrast to the
+  // brick-red ✕ shot markers. Inner rings strongest, fading outward.
   const RING_STOPS: Array<[m: number, label: string, alpha: number]> = [
     [100, '100 m', 0.95],
     [1000, '1 km', 0.75],
@@ -187,7 +192,7 @@ export async function renderShareCard(opts: {
     const r = scaledRadius(m, R);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(134, 174, 227, ${alpha})`; // --azulejo, bright on dark
+    ctx.strokeStyle = `rgba(43, 40, 32, ${alpha})`; // ink rings, dark on sage
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
@@ -208,7 +213,7 @@ export async function renderShareCard(opts: {
     if (m <= 100) {
       ctx.beginPath();
       ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(31, 78, 140, 0.30)'; // --azulejo halo
+      ctx.fillStyle = 'rgba(158, 74, 64, 0.28)'; // brick-red halo on a near-bullseye
       ctx.fill();
     }
 
