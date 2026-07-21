@@ -72,7 +72,18 @@ export function dealGame(
 ): Deal | null {
   if (code.poolVersion > pool.version) return null;
   const eligible = poolAtVersion(pool, code.poolVersion);
-  if (eligible.length < rounds + backups) return null;
-  const shuffled = shuffle(eligible, mulberry32(code.seed));
-  return { rounds: shuffled.slice(0, rounds), backups: shuffled.slice(rounds, rounds + backups) };
+  const need = rounds + backups;
+  // Non-repeating rotation: the seed is a game index. Each cycle is a distinct
+  // shuffle of the whole pool, carved into non-overlapping game-sized slices;
+  // consecutive indices walk those slices, so no spot repeats until the pool is
+  // used up — then the next cycle reshuffles into a fresh order. Bigger pool →
+  // more games before anything comes round again.
+  const gamesPerCycle = Math.floor(eligible.length / need);
+  if (gamesPerCycle < 1) return null;
+  const g = code.seed >>> 0;
+  const cycle = Math.floor(g / gamesPerCycle) >>> 0;
+  const pos = g % gamesPerCycle;
+  const shuffled = shuffle(eligible, mulberry32(cycle));
+  const slice = shuffled.slice(pos * need, pos * need + need);
+  return { rounds: slice.slice(0, rounds), backups: slice.slice(rounds, need) };
 }

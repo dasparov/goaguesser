@@ -1,0 +1,36 @@
+name: Refresh Delhi pool
+on:
+  schedule:
+    - cron: '0 3 * * 1'   # every Monday 03:00 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: refresh-pool
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Discover and append fresh outdoor spots
+        env:
+          VITE_MAPILLARY_TOKEN: ${{ secrets.VITE_MAPILLARY_TOKEN }}
+        run: node scripts/refresh-pool.mjs
+      - name: Commit if the pool grew
+        run: |
+          git config user.name "imspatial-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/data/delhi.json
+          git diff --cached --quiet && echo "no new spots this week" && exit 0
+          git commit -m "spots: weekly Delhi pool refresh"
+          git push
+      - name: Trigger deploy (bot pushes don't auto-trigger workflows)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main || true
