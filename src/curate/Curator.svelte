@@ -4,7 +4,7 @@
   import SpotPanel from './SpotPanel.svelte';
   import BasketPanel from './BasketPanel.svelte';
   import { loadBasket, saveBasket } from './basket';
-  import { loadPool } from '../lib/locations';
+  import { activeCity } from '../lib/city';
   import type { CuratorDot, BasketSpot, FetchStatus } from './types';
 
   // Public client-side token, same as the game (see .env.example) — read-only Graph
@@ -12,7 +12,7 @@
   // render when unset; the panorama and dot fetches then fail gracefully instead.
   const token = (import.meta.env.VITE_MAPILLARY_TOKEN as string | undefined) ?? '';
 
-  const poolIds = new Set(loadPool().locations.map((l) => l.imageId));
+  const poolIds = new Set(activeCity().pool.locations.map((l) => l.imageId));
 
   let basket = $state<BasketSpot[]>([]);
   let dots = $state<CuratorDot[]>([]);

@@ -1,5 +1,3 @@
-import poolJson from '../data/locations.json';
-
 export interface Location {
   imageId: string;
   name: string;
@@ -15,8 +13,4 @@ export interface LocationPool {
 
 export function poolAtVersion(pool: LocationPool, version: number): Location[] {
   return pool.locations.filter((l) => l.version <= version);
-}
-
-export function loadPool(): LocationPool {
-  return poolJson as LocationPool;
 }

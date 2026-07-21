@@ -6,16 +6,23 @@
 
   const VISIBLE_FIELD = 3;
 
-  let { phase, result, canSubmit, isLastRound, field, roundIndex, onsubmit, onnext }: {
+  let { phase, result, canSubmit, isLastRound, cityName, timerSeconds, field, roundIndex, onsubmit, onnext }: {
     phase: Phase;
     result: RoundResult | null;
     canSubmit: boolean;
     isLastRound: boolean;
+    cityName: string;
+    timerSeconds: number | null;
     field: Player[];
     roundIndex: number;
     onsubmit: () => void;
     onnext: () => void;
   } = $props();
+
+  // mm:ss for the per-round countdown (Delhi only; null elsewhere).
+  const timerLabel = $derived(
+    timerSeconds == null ? null : `${Math.floor(timerSeconds / 60)}:${String(timerSeconds % 60).padStart(2, '0')}`
+  );
 
   const topField = $derived(standings(field).slice(0, VISIBLE_FIELD));
   const fieldRemaining = $derived(Math.max(0, field.length - topField.length));
@@ -27,15 +34,24 @@
 <footer class="w-full bg-[var(--panel)] border-t border-[var(--rule)] p-4 min-h-[90px] flex flex-col sm:flex-row items-center justify-between gap-4">
   {#if phase === 'playing'}
     <div class="text-center sm:text-left">
-      <p class="text-sm font-semibold text-[var(--ink)]">Where in Goa is this?</p>
+      <p class="text-sm font-semibold text-[var(--ink)]">Where in {cityName} is this?</p>
       <p class="text-xs text-[var(--ink-faint)] mt-0.5">Look around, then drop a pin on the map.</p>
     </div>
-    <button
-      disabled={!canSubmit}
-      onclick={onsubmit}
-      class="btn-primary w-full sm:w-auto px-6 py-2.5 font-bold uppercase text-xs tracking-wider">
-      Submit guess
-    </button>
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      {#if timerLabel}
+        <span
+          class="font-mono tabular-nums text-lg font-bold shrink-0 {timerSeconds !== null && timerSeconds <= 10 ? 'text-[var(--laterite,#B84A2B)]' : 'text-[var(--ink)]'}"
+          aria-label="Time left this round">
+          {timerLabel}
+        </span>
+      {/if}
+      <button
+        disabled={!canSubmit}
+        onclick={onsubmit}
+        class="btn-primary w-full sm:w-auto px-6 py-2.5 font-bold uppercase text-xs tracking-wider">
+        Submit guess
+      </button>
+    </div>
   {:else if phase === 'scored' && result}
     <div class="flex items-center gap-3 flex-wrap justify-center">
       <div class="card-flat stat-chip-in px-3 py-1.5" style="animation-delay: 0ms">

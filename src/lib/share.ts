@@ -3,7 +3,11 @@ import { emojiForDistance, MAX_GAME_POINTS, MAX_POINTS } from './score';
 
 const SCORE_CHARS = 3; // base36: 'zzz' = 46655 ≥ 5000
 const FIELD_SEP = '~'; // unreserved in RFC 3986, so it survives a query string intact
-const SCORE_BLOCK = ROUNDS * SCORE_CHARS;
+
+// A round-count-worth of score characters. Goa runs 5 rounds, Delhi 3, so the
+// decoders take the active count (defaulting to the 5-round Goa format); the
+// active city is known from the URL, so callers pass its `rounds` through.
+const scoreBlock = (rounds: number) => rounds * SCORE_CHARS;
 
 /** Most players a single link will carry. Beyond this the lowest scorer drops off. */
 export const MAX_FIELD = 8;
@@ -16,10 +20,10 @@ export function encodeResults(scores: number[]): string {
   return scores.map((s) => s.toString(36).padStart(SCORE_CHARS, '0')).join('');
 }
 
-export function decodeResults(s: string): number[] | null {
-  if (!new RegExp(`^[0-9a-z]{${SCORE_BLOCK}}$`).test(s)) return null;
+export function decodeResults(s: string, rounds: number = ROUNDS): number[] | null {
+  if (!new RegExp(`^[0-9a-z]{${scoreBlock(rounds)}}$`).test(s)) return null;
   const scores: number[] = [];
-  for (let i = 0; i < ROUNDS; i++) {
+  for (let i = 0; i < rounds; i++) {
     const v = parseInt(s.slice(i * SCORE_CHARS, (i + 1) * SCORE_CHARS), 36);
     if (!Number.isFinite(v) || v > MAX_POINTS) return null;
     scores.push(v);
@@ -59,13 +63,14 @@ export function encodeField(field: Player[]): string {
 }
 
 /** Unreadable entries are skipped; a mangled link degrades rather than failing. */
-export function decodeField(s: string): Player[] {
+export function decodeField(s: string, rounds: number = ROUNDS): Player[] {
   if (!s) return [];
+  const block = scoreBlock(rounds);
   const field: Player[] = [];
   for (const entry of s.split(FIELD_SEP)) {
-    const scores = decodeResults(entry.slice(0, SCORE_BLOCK));
+    const scores = decodeResults(entry.slice(0, block), rounds);
     if (!scores) continue;
-    field.push(makePlayer(entry.slice(SCORE_BLOCK) || null, scores));
+    field.push(makePlayer(entry.slice(block) || null, scores));
     if (field.length === MAX_FIELD) break;
   }
   return field;
@@ -92,14 +97,14 @@ export function standings(field: Player[]): Array<{ position: number; player: Pl
     .map((player, i) => ({ position: i + 1, player }));
 }
 
-export function parseGameParams(search: string): {
+export function parseGameParams(search: string, rounds: number = ROUNDS): {
   code: ChallengeCode | null;
   field: Player[];
 } {
   const params = new URLSearchParams(search);
   return {
     code: params.has('c') ? decodeChallenge(params.get('c')!) : null,
-    field: params.has('p') ? decodeField(params.get('p')!) : [],
+    field: params.has('p') ? decodeField(params.get('p')!, rounds) : [],
   };
 }
 
@@ -110,7 +115,10 @@ export function buildShareUrl(baseUrl: string, code: ChallengeCode, field: Playe
   return url.toString();
 }
 
-const RANKS: Array<[number, string]> = [
+export type RankTable = Array<[number, string]>;
+
+// Goa's ranks (0 → 25,000). Delhi supplies its own, re-scaled, in city.ts.
+export const RANKS: RankTable = [
   [23001, 'True Goenkar'],
   [18001, 'Poder of the Village'],
   [12001, 'Susegad Local'],
@@ -118,8 +126,8 @@ const RANKS: Array<[number, string]> = [
   [0, 'Confused Tourist'],
 ];
 
-export function rankForScore(total: number): string {
-  return RANKS.find(([min]) => total >= min)![1];
+export function rankForScore(total: number, ranks: RankTable = RANKS): string {
+  return ranks.find(([min]) => total >= min)![1];
 }
 
 export function emojiBar(distances: number[]): string {
@@ -133,16 +141,18 @@ export function ordinal(n: number): string {
 }
 
 export function buildShareText(opts: {
+  title: string;
   rank: string;
   bar: string;
   total: number;
+  maxGamePoints?: number;
   url: string;
   position: number;
   fieldSize: number;
 }): string {
   const head =
-    `GoaGuesser 🏖️ — ${opts.rank}\n` +
-    `${opts.bar} ${formatPoints(opts.total)} / ${formatPoints(MAX_GAME_POINTS)}\n`;
+    `${opts.title} — ${opts.rank}\n` +
+    `${opts.bar} ${formatPoints(opts.total)} / ${formatPoints(opts.maxGamePoints ?? MAX_GAME_POINTS)}\n`;
   // Alone on the board, it's a direct challenge; with a field, it's an invitation to join.
   return opts.fieldSize > 1
     ? head + `${ordinal(opts.position)} of ${opts.fieldSize} on the board\nAdd yours: ${opts.url}`

@@ -5,28 +5,30 @@
   import GameFooter from './components/GameFooter.svelte';
   import Summary from './components/Summary.svelte';
   import ViewToggle from './components/ViewToggle.svelte';
-  import { loadPool } from './lib/locations';
-  import { dealGame, encodeChallenge, randomSeed, ROUNDS, BACKUPS, type ChallengeCode } from './lib/seed';
+  import { dealGame, encodeChallenge, randomSeed, type ChallengeCode } from './lib/seed';
   import { parseGameParams, type Player } from './lib/share';
   import { createGame } from './lib/game.svelte';
   import { playPin, playReveal } from './lib/sound';
   import { loadViewMode, saveViewMode, paneFlex, type ViewMode } from './lib/viewMode';
+  import { activeCity, cityTitle } from './lib/city';
 
   const TOKEN = import.meta.env.VITE_MAPILLARY_TOKEN as string;
-  const pool = loadPool();
+  const city = activeCity();
+  const title = cityTitle(city);
+  const pool = city.pool;
 
   // Resolve challenge code (falling back to a fresh seed) and the field of
   // everyone who has already played this link. `code` is resolved once,
   // synchronously, before first render — a plain `const` (rather than
   // `$state`) so it never needs to trigger a reactive update; the reactive
   // pieces of this setup (`field`) are declared with `$state` explicitly.
-  const parsed = parseGameParams(window.location.search);
+  const parsed = parseGameParams(window.location.search, city.rounds);
   let field: Player[] = $state(parsed.field);
-  let deal = parsed.code ? dealGame(pool, parsed.code) : null;
+  let deal = parsed.code ? dealGame(pool, parsed.code, city.rounds, city.backups) : null;
   const code: ChallengeCode = deal ? parsed.code! : { seed: randomSeed(), poolVersion: pool.version };
   if (!deal) {
     field = []; // stale/malformed link: play a plain new game instead
-    deal = dealGame(pool, code);
+    deal = dealGame(pool, code, city.rounds, city.backups);
   }
   if (deal) {
     const url = new URL(window.location.href);
@@ -71,13 +73,37 @@
     }, 400);
     return () => clearTimeout(settle);
   });
+
+  // Per-round timer (Delhi only — city.timerSec is null for Goa). Each playing
+  // round gets a fresh countdown; when it hits zero the round is force-scored
+  // (a 0-point miss if no pin was dropped) and reveal plays, exactly as if the
+  // player had submitted. Re-runs whenever the round or phase changes, so a
+  // manual submit tears the interval down and the next round restarts it.
+  let secondsLeft = $state(city.timerSec ?? 0);
+  $effect(() => {
+    if (!game || city.timerSec == null) return;
+    void game.roundIndex;
+    if (game.phase !== 'playing') return;
+    secondsLeft = city.timerSec;
+    const iv = setInterval(() => {
+      secondsLeft -= 1;
+      if (secondsLeft <= 0) {
+        secondsLeft = 0;
+        clearInterval(iv);
+        game.forceSubmit();
+        const r = game.results[game.results.length - 1];
+        if (r) playReveal(r.distanceM);
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  });
 </script>
 
 {#if !game}
   <main class="w-full h-dvh flex items-center justify-center bg-[var(--porcelain)] text-[var(--ink)] p-8 text-center">
     <div>
-      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">GoaGuesser</h1>
-      <p>Not enough locations curated yet. Run <code class="bg-[var(--azulejo-pale)] text-[var(--azulejo)] px-1 rounded-[4px]">npm run curate</code> with at least {ROUNDS + BACKUPS} spots.</p>
+      <h1 class="text-2xl font-bold text-[var(--azulejo)] mb-2" style="font-family: var(--font-display)">{title}</h1>
+      <p>Not enough locations curated yet. Run <code class="bg-[var(--azulejo-pale)] text-[var(--azulejo)] px-1 rounded-[4px]">npm run curate</code> with at least {city.rounds + city.backups} spots.</p>
     </div>
   </main>
 {:else if game.phase === 'error'}
@@ -102,7 +128,7 @@
           token={TOKEN}
           onloaderror={() => game.substituteCurrent()}
         />
-        <Hud round={game.roundIndex} totalScore={game.totalScore} {field} />
+        <Hud {title} rounds={city.rounds} round={game.roundIndex} totalScore={game.totalScore} {field} />
       </section>
       <section
         class="w-full min-w-0 min-h-0 relative overflow-hidden pane-flex"
@@ -123,7 +149,9 @@
       phase={game.phase}
       result={lastResult}
       canSubmit={game.guess !== null}
-      isLastRound={game.roundIndex === ROUNDS - 1}
+      isLastRound={game.roundIndex === city.rounds - 1}
+      cityName={city.name}
+      timerSeconds={city.timerSec != null ? secondsLeft : null}
       {field}
       roundIndex={game.roundIndex}
       onsubmit={() => {
@@ -131,7 +159,13 @@
         const r = game.results[game.results.length - 1];
         if (r) playReveal(r.distanceM);
       }}
-      onnext={() => game.next()}
+      onnext={() => {
+        game.next();
+        // Coming out of full-screen map into a new round: surface the fresh
+        // panorama, otherwise the player is left staring at the map with no
+        // sign a new location has loaded.
+        if (viewMode === 'map') viewMode = 'pano';
+      }}
     />
   </main>
 {/if}

@@ -132,14 +132,20 @@ export interface ShareCardStandingRow {
 }
 
 export async function renderShareCard(opts: {
-  /** This player's five real miss distances, in round order — plotted as shots. */
+  /** Wordmark shown top-left, e.g. "IMSpatial · Delhi". */
+  title: string;
+  /** This player's real miss distances, in round order — plotted as shots. */
   distances: number[];
   rank: string;
   total: number;
+  /** Perfect-game total (rounds × 5000); falls back to the 5-round Goa max. */
+  maxGamePoints?: number;
   position: number;
   fieldSize: number;
   standings: ShareCardStandingRow[];
 }): Promise<Blob> {
+  const roundCount = opts.distances.length;
+  const maxPoints = opts.maxGamePoints ?? MAX_GAME_POINTS;
   const rows = opts.standings.slice(0, STANDINGS_VISIBLE);
   const height = BASE_H + Math.max(0, rows.length - 1) * STANDINGS_ROW_H;
 
@@ -154,30 +160,38 @@ export async function renderShareCard(opts: {
   // Header: mono caps, letterspaced — wordmark left, round count right.
   ctx.fillStyle = CARD_INK_FAINT;
   ctx.font = `bold 24px ${MONO_FONT}`;
-  fillTextSpaced(ctx, 'GOAGUESSER', MARGIN, 74, 3);
-  const roundsLabel = '5 ROUNDS';
+  fillTextSpaced(ctx, opts.title.toUpperCase(), MARGIN, 74, 3);
+  const roundsLabel = `${roundCount} ROUNDS`;
   fillTextSpaced(ctx, roundsLabel, W - MARGIN - measureSpaced(ctx, roundsLabel, 3), 74, 3);
+
+  // One-line explainer so a first-time viewer instantly gets the premise.
+  ctx.fillStyle = CARD_INK_SOFT;
+  ctx.font = `20px ${MONO_FONT}`;
+  ctx.fillText('A street-view guessing game — pin the spot on the map, closer wins.', MARGIN, 112);
 
   // Chart: four concentric rings + this player's five shots.
   const R = 220;
   const cx = W / 2;
   const cy = 340;
+  // Bright periwinkle rings (CARD_AZULEJO, rgb 134/174/227) — legible on the
+  // dark card and a clear contrast to the orange ✕ shot markers. Inner rings
+  // brightest, fading outward so the target still reads as concentric.
   const RING_STOPS: Array<[m: number, label: string, alpha: number]> = [
-    [100, '100 m', 0.55],
-    [1000, '1 km', 0.4],
-    [5000, '5 km', 0.28],
-    [15000, '15 km', 0.18],
+    [100, '100 m', 0.95],
+    [1000, '1 km', 0.75],
+    [5000, '5 km', 0.6],
+    [15000, '15 km', 0.45],
   ];
   const labelAngle = (-45 * Math.PI) / 180;
   for (const [m, label, alpha] of RING_STOPS) {
     const r = scaledRadius(m, R);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(31, 78, 140, ${alpha})`; // --azulejo
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(134, 174, 227, ${alpha})`; // --azulejo, bright on dark
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    ctx.fillStyle = CARD_INK_FAINT;
+    ctx.fillStyle = CARD_INK_SOFT;
     ctx.font = `15px ${MONO_FONT}`;
     ctx.fillText(label, cx + r * Math.cos(labelAngle) + 4, cy + r * Math.sin(labelAngle));
   }
@@ -212,7 +226,7 @@ export async function renderShareCard(opts: {
   // Caption: directly under the rings, well clear of the rank block below.
   ctx.fillStyle = CARD_INK_FAINT;
   ctx.font = `15px ${MONO_FONT}`;
-  ctx.fillText('5 rounds · ✕ plotted by distance from the answer', MARGIN, cy + R + 40);
+  ctx.fillText(`${roundCount} rounds · ✕ plotted by distance from the answer`, MARGIN, cy + R + 40);
 
   // Rank / score / accuracy.
   let y = 700 + CAPTION_GAP;
@@ -224,7 +238,7 @@ export async function renderShareCard(opts: {
   ctx.fillStyle = CARD_INK_SOFT;
   ctx.font = `bold 32px ${MONO_FONT}`;
   const scoreLine =
-    `${formatPoints(opts.total)} / ${formatPoints(MAX_GAME_POINTS)}` +
+    `${formatPoints(opts.total)} / ${formatPoints(maxPoints)}` +
     (opts.fieldSize > 1 ? ` · ${ordinal(opts.position)} of ${opts.fieldSize}` : '');
   ctx.fillText(scoreLine, MARGIN, y);
 
@@ -256,7 +270,7 @@ export async function renderShareCard(opts: {
   // Footer: pinned near the bottom of the (content-sized) canvas.
   ctx.fillStyle = CARD_INK_FAINT;
   ctx.font = `24px ${MONO_FONT}`;
-  ctx.fillText('same five spots — your turn', MARGIN, height - 50);
+  ctx.fillText(`same ${roundCount} spots — your turn`, MARGIN, height - 50);
 
   return new Promise((resolve) => c.toBlob((b) => resolve(b!), 'image/png'));
 }

@@ -7,7 +7,11 @@
   } from '../lib/share';
   import { formatDistance, MAX_GAME_POINTS, missForPoints } from '../lib/score';
   import { renderShareCard } from '../lib/card';
+  import { activeCity, cityTitle } from '../lib/city';
   import Trophy from './Trophy.svelte';
+
+  const city = activeCity();
+  const title = cityTitle(city);
 
   let { results, totalScore, code, field }: {
     results: RoundResult[];
@@ -16,7 +20,7 @@
     field: Player[];
   } = $props();
 
-  const rank = $derived(rankForScore(totalScore));
+  const rank = $derived(rankForScore(totalScore, city.ranks));
   const bar = $derived(emojiBar(results.map((r) => r.distanceM)));
   const alone = $derived(field.length === 0);
 
@@ -35,7 +39,7 @@
     return "It's a tie";
   });
 
-  let playerName = $state(localStorage.getItem('goaguesser-name') ?? '');
+  let playerName = $state(localStorage.getItem('imspatial-name') ?? '');
   let copied = $state(false);
   let sharing = $state(false);
   let copyError = $state(false);
@@ -70,27 +74,33 @@
     copyError = false;
     fallbackUrl = null;
     try {
-      localStorage.setItem('goaguesser-name', playerName);
+      localStorage.setItem('imspatial-name', playerName);
       const finalField = addToField(field, me);
       const finalBoard = standings(finalField);
       const myPosition = finalBoard.find((b) => b.player === me)?.position ?? finalBoard.length;
 
-      const url = buildShareUrl(window.location.origin + window.location.pathname, code, finalField);
+      // Keep the ?city= param so a shared Delhi link stays Delhi (its pool
+      // version and round count differ from Goa's).
+      const url = buildShareUrl(
+        window.location.origin + window.location.pathname + window.location.search,
+        code, finalField,
+      );
       const text = buildShareText({
-        rank, bar, total: totalScore, url,
+        title, rank, bar, total: totalScore, maxGamePoints: city.maxGamePoints, url,
         position: myPosition, fieldSize: finalField.length,
       });
 
       try {
         const blob = await renderShareCard({
+          title,
           distances: results.map((r) => r.distanceM),
-          rank, total: totalScore,
+          rank, total: totalScore, maxGamePoints: city.maxGamePoints,
           position: myPosition, fieldSize: finalField.length,
           standings: finalBoard.map((s) => ({
             position: s.position, name: s.player.name, total: s.player.total, isMe: s.player === me,
           })),
         });
-        const file = new File([blob], 'goaguesser.png', { type: 'image/png' });
+        const file = new File([blob], 'imspatial.png', { type: 'image/png' });
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({ files: [file], text });
           return;

@@ -187,11 +187,11 @@ describe('emojiBar & share text', () => {
   it('invites the next player when others are on the board', () => {
     expect(
       buildShareText({
-        rank: 'Susegad Local', bar: '🎯🟢🔴🟢🟡', total: 18240,
+        title: 'IMSpatial · Goa', rank: 'Susegad Local', bar: '🎯🟢🔴🟢🟡', total: 18240,
         url: 'https://x.test/?c=a.1', position: 2, fieldSize: 4,
       })
     ).toBe(
-      'GoaGuesser 🏖️ — Susegad Local\n' +
+      'IMSpatial · Goa — Susegad Local\n' +
       '🎯🟢🔴🟢🟡 18,240 / 25,000\n' +
       '2nd of 4 on the board\n' +
       'Add yours: https://x.test/?c=a.1'
@@ -200,11 +200,11 @@ describe('emojiBar & share text', () => {
   it('challenges directly when the board is empty', () => {
     expect(
       buildShareText({
-        rank: 'True Goenkar', bar: '🎯🎯🎯🎯🎯', total: 25000,
+        title: 'IMSpatial · Goa', rank: 'True Goenkar', bar: '🎯🎯🎯🎯🎯', total: 25000,
         url: 'https://x.test/?c=a.1', position: 1, fieldSize: 1,
       })
     ).toBe(
-      'GoaGuesser 🏖️ — True Goenkar\n' +
+      'IMSpatial · Goa — True Goenkar\n' +
       '🎯🎯🎯🎯🎯 25,000 / 25,000\n' +
       'Beat me: https://x.test/?c=a.1'
     );

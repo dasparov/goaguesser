@@ -50,10 +50,15 @@ export interface Deal {
   backups: Location[];
 }
 
-export function dealGame(pool: LocationPool, code: ChallengeCode): Deal | null {
+export function dealGame(
+  pool: LocationPool,
+  code: ChallengeCode,
+  rounds: number = ROUNDS,
+  backups: number = BACKUPS,
+): Deal | null {
   if (code.poolVersion > pool.version) return null;
   const eligible = poolAtVersion(pool, code.poolVersion);
-  if (eligible.length < ROUNDS + BACKUPS) return null;
+  if (eligible.length < rounds + backups) return null;
   const shuffled = shuffle(eligible, mulberry32(code.seed));
-  return { rounds: shuffled.slice(0, ROUNDS), backups: shuffled.slice(ROUNDS, ROUNDS + BACKUPS) };
+  return { rounds: shuffled.slice(0, rounds), backups: shuffled.slice(rounds, rounds + backups) };
 }

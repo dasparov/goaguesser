@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import L from 'leaflet';
   import type { RoundResult } from '../lib/game.svelte';
+  import { activeCity } from '../lib/city';
 
   let { interactive, roundIndex, result, onpin }: {
     interactive: boolean;
@@ -10,8 +11,9 @@
     onpin: (lat: number, lng: number) => void;
   } = $props();
 
-  const GOA_CENTER: L.LatLngTuple = [15.35, 74.0];
-  const GOA_ZOOM = 10;
+  const city = activeCity();
+  const CENTER = city.center as L.LatLngTuple;
+  const ZOOM = city.zoom;
 
   // Visual identity (docs/superpowers/specs/visual-identity.md): marker colors are
   // load-bearing — amber for the guess pin, emerald for the actual-answer pin,
@@ -22,7 +24,7 @@
 
   // First-ever reveal on this device gets two tiny labels explaining which
   // pin is which; never again after that (once-only onboarding hint).
-  const REVEAL_LABEL_FLAG = 'goaguesser-seen-reveal';
+  const REVEAL_LABEL_FLAG = 'imspatial-seen-reveal';
   let showFirstRevealLabels = !localStorage.getItem(REVEAL_LABEL_FLAG);
 
   let el: HTMLDivElement;
@@ -40,10 +42,10 @@
     });
 
   onMount(() => {
-    map = L.map(el, { center: GOA_CENTER, zoom: GOA_ZOOM });
+    map = L.map(el, { center: CENTER, zoom: ZOOM });
     // Labeled tiles by owner decision after the first playtest: recognising a
     // place from the panorama is the skill; finding it on the map shouldn't be.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
@@ -64,15 +66,21 @@
     if (!map) return;
     for (const layer of [guessMarker, actualMarker, line]) layer && map.removeLayer(layer);
     guessMarker = actualMarker = line = null;
-    map.setView(GOA_CENTER, GOA_ZOOM);
+    map.setView(CENTER, ZOOM);
   });
 
   // Reveal: answer marker + dashed line + fit both pins.
   $effect(() => {
     if (!map || !result) return;
     const actual: L.LatLngTuple = [result.location.lat, result.location.lng];
-    const guessed: L.LatLngTuple = [result.guessLat, result.guessLng];
     actualMarker = L.marker(actual, { icon: pinIcon(EMERALD) }).addTo(map);
+
+    // Timer ran out with no pin dropped: reveal only the answer, centred.
+    if (result.guessLat === null || result.guessLng === null) {
+      map.setView(actual, map.getZoom());
+      return;
+    }
+    const guessed: L.LatLngTuple = [result.guessLat, result.guessLng];
     line = L.polyline([guessed, actual], { color: LATERITE, weight: 3, dashArray: '6 6' }).addTo(map);
     map.fitBounds(L.latLngBounds([guessed, actual]).pad(0.25));
 
@@ -83,7 +91,7 @@
       const labelOpts = (direction: 'left' | 'right'): L.TooltipOptions => ({
         permanent: true,
         direction,
-        className: 'goaguesser-reveal-label',
+        className: 'imspatial-reveal-label',
         offset: [0, -12],
       });
       guessMarker.bindTooltip('your guess', labelOpts(guessedIsWest ? 'left' : 'right')).openTooltip();
@@ -112,7 +120,7 @@
      specs/visual-identity.md) — overrides Leaflet's default white-box-shadow
      tooltip chrome and hides its pointer arrow. Global because Leaflet appends
      these elements outside Svelte's scoped template. */
-  :global(.goaguesser-reveal-label) {
+  :global(.imspatial-reveal-label) {
     background: var(--panel);
     border: 1px solid var(--rule);
     color: var(--ink-soft);
@@ -123,7 +131,7 @@
     box-shadow: none;
     white-space: nowrap;
   }
-  :global(.goaguesser-reveal-label::before) {
+  :global(.imspatial-reveal-label::before) {
     display: none;
   }
 </style>
